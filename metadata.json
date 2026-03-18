@@ -1,0 +1,7 @@
+{
+  "name": "Remix3 MedPass: MR Hospital Booking System v3.91",
+  "description": "Professional Field Intelligence 3.5 featuring advanced AI priority analysis, real-time gate synchronization, and lottery strategy optimization.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
