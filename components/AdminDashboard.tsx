@@ -31,7 +31,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   const [logs, setLogs] = useState<EntryLog[]>([]);
   const [approvals, setApprovals] = useState<MRHospitalApproval[]>([]);
   const [activeTab, setActiveTab] = useState<'lottery' | 'history' | 'approvals' | 'companies' | 'settings'>('lottery');
-  const [settingsTab, setSettingsTab] = useState<'profile' | 'sessions' | 'security'>('profile');
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'sessions'>('profile');
   const [passwordData, setPasswordData] = useState({ new: '', confirm: '' });
   const [selectedMR, setSelectedMR] = useState<MedicalRep | null>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -489,7 +489,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
           <div className="flex border-b border-slate-100 mb-8 overflow-x-auto">
             <button onClick={() => setSettingsTab('profile')} className={`px-6 py-3 text-[10px] font-black border-b-2 whitespace-nowrap ${settingsTab === 'profile' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>HOSPITAL PROFILE</button>
             <button onClick={() => setSettingsTab('sessions')} className={`px-6 py-3 text-[10px] font-black border-b-2 whitespace-nowrap ${settingsTab === 'sessions' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>SESSIONS & AUTO-SPIN</button>
-            <button onClick={() => setSettingsTab('security')} className={`px-6 py-3 text-[10px] font-black border-b-2 whitespace-nowrap ${settingsTab === 'security' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>SECURITY</button>
           </div>
 
           <div className="space-y-8">
@@ -599,48 +598,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                 })}
               </div>
             )}
-            {settingsTab === 'security' && (
-              <form onSubmit={handleUpdatePassword} className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                  <h4 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-tight">Update Access Credentials</h4>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">New Password</label>
-                      <input 
-                        required
-                        type="password" 
-                        value={passwordData.new} 
-                        onChange={e => setPasswordData({...passwordData, new: e.target.value})}
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" 
-                        placeholder="Enter new password"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Confirm New Password</label>
-                      <input 
-                        required
-                        type="password" 
-                        value={passwordData.confirm} 
-                        onChange={e => setPasswordData({...passwordData, confirm: e.target.value})}
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" 
-                        placeholder="Confirm new password"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <button type="submit" className="w-full bg-slate-800 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-slate-900 transition-all uppercase tracking-widest text-xs">
-                  UPDATE SECURITY KEY
-                </button>
-              </form>
-            )}
-            
-            {settingsTab !== 'security' && (
-              <div className="pt-6 border-t border-slate-100">
+            <div className="pt-6 border-t border-slate-100">
                 <button onClick={handleSaveHospitalData} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2">
                   <Save className="h-5 w-5" /> SAVE SYSTEM CHANGES
                 </button>
               </div>
-            )}
           </div>
         </section>
       )}

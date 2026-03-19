@@ -1,6 +1,7 @@
 
 import { AuthUser } from '../types';
 import { supabase } from '../supabaseClient';
+import bcrypt from 'bcryptjs';
 
 const SESSION_KEY = 'medpass_session';
 
@@ -11,10 +12,18 @@ export const SessionService = {
     return session ? JSON.parse(session) : null;
   },
   clearSession: () => localStorage.removeItem(SESSION_KEY),
+  hashPassword: async (password: string) => {
+    const salt = await bcrypt.genSalt(10);
+    return bcrypt.hash(password, salt);
+  },
   updatePassword: async (userId: string, newPassword: string) => {
+    // Hash the password before saving for security
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    
     const { error } = await supabase
       .from('profiles')
-      .update({ password: newPassword })
+      .update({ password: hashedPassword })
       .eq('id', userId);
     if (error) throw error;
   }

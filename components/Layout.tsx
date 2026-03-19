@@ -51,10 +51,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title }) => {
             <h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
             <p className="text-sm text-slate-400 font-medium mt-1">Hospital Access & Intelligence Network</p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
-            <Activity className="h-4 w-4 text-indigo-500" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">System Pulse: Nominal</span>
-          </div>
         </div>
         {children}
       </main>
