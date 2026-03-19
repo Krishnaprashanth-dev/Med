@@ -12,7 +12,11 @@
     "skipLibCheck": true,
     "types": [
       "node",
-      "vite/client"
+      "vite/client",
+      "express",
+      "cors",
+      "morgan",
+      "bcryptjs"
     ],
     "moduleResolution": "bundler",
     "isolatedModules": true,

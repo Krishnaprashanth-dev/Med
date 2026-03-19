@@ -199,6 +199,15 @@ const App: React.FC = () => {
         body: JSON.stringify({ mobile: cleanMobile, password: cleanPassword, role })
       });
 
+      if (!response.ok) {
+        console.error(`[Login] API Error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`[Login] Error Body:`, errorText);
+        showFeedback(`Authentication failed (Server Error: ${response.status}).`, 'error');
+        setIsLoggingIn(false);
+        return;
+      }
+
       const result = await response.json();
 
       if (!result.success) {

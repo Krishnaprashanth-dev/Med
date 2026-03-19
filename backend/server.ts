@@ -6,39 +6,32 @@ import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import cors from 'cors';
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://mbxbefmldndavkjftlzv.supabase.co';
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_pN_bO_hvI8eq2Bt9lHN6tQ_r0irnJ6b';
+dotenv.config({ path: path.join(__dirname, '.env') });
 
-console.log(`[Supabase Config] URL: ${supabaseUrl.substring(0, 15)}...`);
-console.log(`[Supabase Config] Key: ${supabaseAnonKey.substring(0, 10)}...`);
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('WARNING: Supabase credentials missing. Authentication will fail.');
-}
-
+const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(cors());
   app.use(express.json());
+
+  // Health Check
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', environment: process.env.NODE_ENV });
+  });
 
   // API Routes
   app.post('/api/auth/login', async (req, res) => {
     const { mobile, password, role } = req.body;
     
     try {
-      console.log(`[Login Attempt] Mobile: ${mobile}, Role: ${role}`);
-      
       // 1. Root Bypass (Securely handled on server)
       const rootId = process.env.VITE_SUPER_ADMIN_ID || 'root';
       const rootPass = process.env.VITE_SUPER_ADMIN_PASS || 'root';
@@ -46,7 +39,6 @@ async function startServer() {
       const altPass = process.env.VITE_SUPER_ADMIN_ALT_PASS || '123456';
 
       if ((mobile === rootId && password === rootPass) || (mobile === altId && password === altPass)) {
-        console.log('[Login] Root bypass successful');
         return res.json({
           success: true,
           user: {
@@ -57,20 +49,13 @@ async function startServer() {
         });
       }
 
-      if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error('Supabase configuration is missing on the server.');
-      }
-
       // 2. Lookup user in Supabase
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('*, mrs(*, pharma_companies(name))')
         .eq('mobile_number', mobile);
 
-      if (error) {
-        console.error('[Supabase Query Error]', error);
-        throw error;
-      }
+      if (error) throw error;
       if (!profiles || profiles.length === 0) {
         return res.status(401).json({ success: false, message: 'Invalid credentials. Account not found.' });
       }
@@ -78,7 +63,7 @@ async function startServer() {
       // 3. Verify password
       let matchedProfile = null;
       for (const p of profiles) {
-        if (!p.password || typeof p.password !== 'string') continue;
+        if (!p.password) continue;
         
         // Check if it's a bcrypt hash
         const isHash = p.password.startsWith('$2a$') || p.password.startsWith('$2b$');
@@ -146,20 +131,7 @@ async function startServer() {
       res.json({ success: true, user });
     } catch (err: any) {
       console.error('Auth Error:', err);
-      // Log more details to help debugging
-      if (err.code) console.error('Error Code:', err.code);
-      if (err.details) console.error('Error Details:', err.details);
-      if (err.hint) console.error('Error Hint:', err.hint);
-      
-      const errorMessage = err.message || 'Authentication failed. Server error.';
-      res.status(500).json({ 
-        success: false, 
-        message: errorMessage,
-        debug: process.env.NODE_ENV !== 'production' ? err.stack : {
-          code: err.code,
-          details: err.details
-        }
-      });
+      res.status(500).json({ success: false, message: 'Authentication failed. Server error.' });
     }
   });
 
@@ -210,9 +182,18 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
+
+  return app;
 }
 
-startServer();
+// Export for Vercel
+const appPromise = startServer();
+export default async (req: any, res: any) => {
+  const app = await appPromise;
+  return app(req, res);
+};
