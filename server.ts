@@ -32,6 +32,11 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
 
+  // Health Check
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', environment: process.env.NODE_ENV, vercel: !!process.env.VERCEL });
+  });
+
   // API Routes
   app.post('/api/auth/login', async (req, res) => {
     const { mobile, password, role } = req.body;
@@ -210,9 +215,18 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
+
+  return app;
 }
 
-startServer();
+// Export for Vercel
+const appPromise = startServer();
+export default async (req: any, res: any) => {
+  const app = await appPromise;
+  return app(req, res);
+};
