@@ -3,10 +3,10 @@ import React, { useState, useEffect, useContext } from 'react';
 import { 
   Building2, Users, Settings, Plus, Power, Activity, Edit3, Trash2, X, 
   Briefcase, Clock, User, ShieldCheck, Lock, Key, Image as ImageIcon, 
-  CheckCircle, TrendingUp, AlertTriangle, Info, Calendar, Mail, Phone, Eye, EyeOff, MapPin, CreditCard
+  CheckCircle, TrendingUp, AlertTriangle, Info, Calendar, Mail, Phone, Eye, EyeOff, MapPin, CreditCard, Zap
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
-import { Hospital, PharmaCompany, MedicalRep, HospitalUser, PassApplication, IssuedPass, AuthUser } from '../types';
+import { Hospital, PharmaCompany, MedicalRep, HospitalUser, PassApplication, IssuedPass, AuthUser, AuditLog } from '../types';
 import { FeedbackContext } from '../App';
 
 interface SuperAdminDashboardProps {
@@ -24,9 +24,10 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
   const [passes, setPasses] = useState<IssuedPass[]>([]);
   
   // UI States
-  const [activeTab, setActiveTab] = useState<'hospitals' | 'companies'>('hospitals');
+  const [activeTab, setActiveTab] = useState<'hospitals' | 'companies' | 'monitoring'>('hospitals');
   const [isAuditing, setIsAuditing] = useState(false);
-  const [auditData, setAuditData] = useState<any[]>([]);
+  const [auditData, setAuditData] = useState<AuditLog[]>([]);
+  const [systemIssues, setSystemIssues] = useState<{ type: 'error' | 'warning' | 'info', message: string, details: string }[]>([]);
   
   // Hospital Modal States
   const [isHospitalModalOpen, setIsHospitalModalOpen] = useState(false);
@@ -51,6 +52,71 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     setMrs(await storageService.getMRs());
     setApps(await storageService.getApplications());
     setPasses(await storageService.getPasses());
+    
+    const logs = await storageService.getAuditLogs();
+    setAuditData(logs);
+    detectSystemIssues(logs);
+  };
+
+  const detectSystemIssues = (logs: AuditLog[]) => {
+    const issues: { type: 'error' | 'warning' | 'info', message: string, details: string }[] = [];
+    
+    // 1. Check for hospitals without sessions
+    hospitals.forEach(h => {
+      if (!h.supportedSessions || h.supportedSessions.length === 0) {
+        issues.push({ type: 'error', message: `Hospital Configuration Error: ${h.name}`, details: 'No supported sessions configured. MRs cannot apply for passes.' });
+      }
+      
+      const passLimits = h.passLimits || {};
+      const totalPassLimit = Object.values(passLimits).reduce((a: number, b: any) => a + (Number(b) || 0), 0) as number;
+      if (totalPassLimit < 5) {
+        issues.push({ type: 'warning', message: `Low Capacity Alert: ${h.name}`, details: `Total daily pass limit is only ${totalPassLimit}. This may cause high rejection rates.` });
+      }
+    });
+
+    // 2. Check for companies without MRs or with many suspended MRs
+    companies.forEach(c => {
+      const companyMRs = mrs.filter(m => m.companyName === c.name);
+      const activeMRCount = companyMRs.filter(m => m.status === 'active').length;
+      const suspendedMRCount = companyMRs.filter(m => m.status === 'suspended').length;
+
+      if (companyMRs.length === 0) {
+        issues.push({ type: 'warning', message: `Inactive Partner: ${c.name}`, details: 'No representatives registered for this company.' });
+      } else if (suspendedMRCount > activeMRCount && activeMRCount > 0) {
+        issues.push({ type: 'info', message: `High Suspension Rate: ${c.name}`, details: `${suspendedMRCount} out of ${companyMRs.length} representatives are currently suspended.` });
+      }
+    });
+
+    // 3. Check for expired SLCPI IDs
+    const now = new Date();
+    mrs.forEach(mr => {
+      if (mr.slcpiExpiry) {
+        const expiryDate = new Date(mr.slcpiExpiry);
+        if (expiryDate < now) {
+          issues.push({ type: 'error', message: `Compliance Breach: ${mr.fullName}`, details: `SLCPI ID expired on ${expiryDate.toLocaleDateString()}. Gate entry should be restricted.` });
+        } else {
+          const daysToExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysToExpiry <= 7) {
+            issues.push({ type: 'warning', message: `Upcoming Expiry: ${mr.fullName}`, details: `SLCPI ID expires in ${daysToExpiry} days (${expiryDate.toLocaleDateString()}).` });
+          }
+        }
+      }
+    });
+
+    // 4. Check for stale pass applications (applied but not processed for > 24h)
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const staleApps = apps.filter(a => a.status === 'applied' && new Date(a.createdAt) < twentyFourHoursAgo);
+    if (staleApps.length > 0) {
+      issues.push({ type: 'warning', message: 'Stale Applications Detected', details: `${staleApps.length} pass applications have been pending for more than 24 hours.` });
+    }
+
+    // 5. Check for recent failed logins or errors in logs
+    const recentErrors = logs.filter(l => l.action.includes('ERROR') || l.action.includes('FAILED')).slice(0, 5);
+    recentErrors.forEach(l => {
+      issues.push({ type: 'error', message: `System Alert: ${l.action}`, details: `${l.details} (at ${new Date(l.timestamp).toLocaleString()})` });
+    });
+
+    setSystemIssues(issues);
   };
 
   const handleSaveHospital = async (e: React.FormEvent) => {
@@ -201,6 +267,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
       <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm w-fit gap-1 overflow-x-auto max-w-full">
         <button onClick={() => setActiveTab('hospitals')} className={`px-4 md:px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'hospitals' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Building2 className="h-4 w-4" /> Hospitals</button>
         <button onClick={() => setActiveTab('companies')} className={`px-4 md:px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'companies' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Briefcase className="h-4 w-4" /> Companies</button>
+        <button onClick={() => setActiveTab('monitoring')} className={`px-4 md:px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'monitoring' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Activity className="h-4 w-4" /> System Health</button>
       </div>
 
       {activeTab === 'hospitals' && (
@@ -329,6 +396,120 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
         </section>
       )}
 
+      {activeTab === 'monitoring' && (
+        <section className="space-y-6 animate-in fade-in duration-300">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold flex items-center gap-2"><Activity className="h-5 w-5 text-indigo-600" /> System Pulse & Diagnostics</h3>
+                  <span className="px-3 py-1 bg-green-50 text-green-600 text-[10px] font-black rounded-full uppercase tracking-widest">All Services Online</span>
+                </div>
+                
+                <div className="space-y-4">
+                  {systemIssues.length > 0 ? (
+                    systemIssues.map((issue, idx) => (
+                      <div key={idx} className={`p-4 rounded-2xl border flex gap-4 ${
+                        issue.type === 'error' ? 'bg-red-50 border-red-100' : 
+                        issue.type === 'warning' ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'
+                      }`}>
+                        <div className={`p-2 rounded-xl h-fit ${
+                          issue.type === 'error' ? 'bg-red-100 text-red-600' : 
+                          issue.type === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
+                        }`}>
+                          <AlertTriangle className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800">{issue.message}</p>
+                          <p className="text-xs text-slate-500 mt-1">{issue.details}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                      <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm font-medium text-slate-400">No critical system issues detected at this time.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><History className="h-5 w-5 text-indigo-600" /> Global Audit Trail</h3>
+                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                  {auditData.map(log => (
+                    <div key={log.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center group hover:bg-white hover:border-indigo-100 transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100 group-hover:bg-indigo-50 transition-colors">
+                          <Zap className="h-4 w-4 text-indigo-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-800 uppercase tracking-tight">{log.action}</p>
+                          <p className="text-[10px] text-slate-400 font-medium">{log.details}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-black text-slate-400 uppercase">{new Date(log.timestamp).toLocaleDateString()}</p>
+                        <p className="text-[9px] text-slate-300 font-bold">{new Date(log.timestamp).toLocaleTimeString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-indigo-600 p-8 rounded-3xl text-white shadow-xl shadow-indigo-200">
+                <h4 className="text-lg font-black mb-4 uppercase tracking-tighter">System Capacity</h4>
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex justify-between text-[10px] font-black uppercase mb-2">
+                      <span>Hospital Nodes</span>
+                      <span>{hospitals.length} Active</span>
+                    </div>
+                    <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-white w-3/4"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[10px] font-black uppercase mb-2">
+                      <span>Partner Entities</span>
+                      <span>{companies.length} Active</span>
+                    </div>
+                    <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-white w-1/2"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[10px] font-black uppercase mb-2">
+                      <span>Field Representatives</span>
+                      <span>{mrs.length} Registered</span>
+                    </div>
+                    <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-white w-full"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Quick Stats</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase">Total Apps</p>
+                    <p className="text-2xl font-black text-slate-800">{apps.length}</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase">Passes Issued</p>
+                    <p className="text-2xl font-black text-indigo-600">{passes.length}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Hospital Provisioning / Edit Modal */}
       {isHospitalModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in zoom-in duration-200">
@@ -379,7 +560,9 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                 <div className="grid grid-cols-2 gap-3">
                   <input required type="text" value={securityData.fullName} onChange={e => setSecurityData({...securityData, fullName: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Full Name" />
                   <input required type="text" value={securityData.mobileNumber} onChange={e => setSecurityData({...securityData, mobileNumber: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Login ID" />
-                  <input required={!editingHospital?.id} type={showPasswords ? "text" : "password"} value={securityData.password} onChange={e => setSecurityData({...securityData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold col-span-2" placeholder={editingHospital?.id ? "Set New Guard Password (leave blank to keep current)" : "Guard Password"} />
+                  {!editingHospital?.id && (
+                    <input required type={showPasswords ? "text" : "password"} value={securityData.password} onChange={e => setSecurityData({...securityData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold col-span-2" placeholder="Guard Password" />
+                  )}
                 </div>
               </div>
 
