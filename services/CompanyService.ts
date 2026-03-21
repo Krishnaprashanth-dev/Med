@@ -1,7 +1,6 @@
 
 import { supabase } from '../supabaseClient';
 import { PharmaCompany } from '../types';
-import { SessionService } from './SessionService';
 
 export const CompanyService = {
   getCompanies: async (): Promise<PharmaCompany[]> => {
@@ -75,7 +74,7 @@ export const CompanyService = {
         };
 
         if (c.adminPassword) {
-          profileUpdate.password = await SessionService.hashPassword(c.adminPassword.trim());
+          profileUpdate.password = c.adminPassword;
         }
 
         console.log(`[CompanyService] Upserting company admin profile:`, { id: profileUpdate.id, role: profileUpdate.role, mobile: profileUpdate.mobile_number, hasPassword: !!profileUpdate.password });

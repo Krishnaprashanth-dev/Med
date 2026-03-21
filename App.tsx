@@ -73,30 +73,8 @@ const App: React.FC = () => {
   useEffect(() => {
     const session = storageService.getCurrentUser();
     if (session) { 
-      // Validate session role against appType to prevent cross-portal access
-      const expectedRole = getInitialRole(appType);
-      
-      // SUPER_ADMIN can access everything, otherwise roles must match or be compatible
-      const isCompatible = 
-        session.role === 'SUPER_ADMIN' || 
-        ((appType === 'admin' || appType === 'hospital') && session.role === 'ADMIN') ||
-        (appType === 'company' && session.role === 'COMPANY_ADMIN') ||
-        (appType === 'security' && session.role === 'SECURITY') ||
-        ((appType === '' || appType === 'mr') && session.role === 'MR');
-
-      if (isCompatible) {
-        setUser(session); 
-        setView('DASHBOARD'); 
-      } else {
-        // Clear incompatible session and reset state
-        storageService.clearSession();
-        setUser(null);
-        setView('LOGIN');
-      }
-    } else {
-      // No session, ensure we are at login
-      setUser(null);
-      setView('LOGIN');
+      setUser(session); 
+      setView('DASHBOARD'); 
     }
 
     const automationInterval = setInterval(async () => {
@@ -199,7 +177,7 @@ const App: React.FC = () => {
     }, 60000);
 
     return () => clearInterval(automationInterval);
-  }, [appType]);
+  }, []);
 
   const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
     setFeedback({ message, type });
