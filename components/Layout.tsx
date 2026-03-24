@@ -30,6 +30,14 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title }) => {
           </div>
           
           <div className="flex items-center space-x-4">
+            <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-white/5 rounded-xl border border-white/10 mr-4">
+               <div className="flex flex-col items-end">
+                  <span className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">System Pulse</span>
+                  <span className="text-[9px] font-bold text-green-400">All Nodes Operational</span>
+               </div>
+               <Activity className="h-4 w-4 text-green-400 animate-pulse" />
+            </div>
+
             <div className="hidden md:flex flex-col items-end mr-2">
               <span className="text-xs font-bold text-indigo-100">{user.fullName}</span>
               <span className="text-[10px] text-indigo-300 font-medium">Session Active</span>
@@ -50,10 +58,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title }) => {
           <div>
             <h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
             <p className="text-sm text-slate-400 font-medium mt-1">Hospital Access & Intelligence Network</p>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
-            <Activity className="h-4 w-4 text-indigo-500" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">System Pulse: Nominal</span>
           </div>
         </div>
         {children}

@@ -1,6 +1,7 @@
 
 import { supabase } from '../supabaseClient';
 import { Hospital, HospitalUser } from '../types';
+import { SessionService } from './SessionService';
 
 export const HospitalService = {
   getHospitals: async (id?: string): Promise<Hospital[]> => {
@@ -109,7 +110,7 @@ export const HospitalService = {
       };
 
       if (u.password) {
-        profileUpdate.password = u.password;
+        profileUpdate.password = u.password.trim();
       }
 
       console.log(`[HospitalService] Upserting profile:`, { id: profileUpdate.id, role: profileUpdate.role, mobile: profileUpdate.mobile_number, hasPassword: !!profileUpdate.password });

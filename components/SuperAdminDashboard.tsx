@@ -3,10 +3,10 @@ import React, { useState, useEffect, useContext } from 'react';
 import { 
   Building2, Users, Settings, Plus, Power, Activity, Edit3, Trash2, X, 
   Briefcase, Clock, User, ShieldCheck, Lock, Key, Image as ImageIcon, 
-  CheckCircle, TrendingUp, AlertTriangle, Info, Calendar, Mail, Phone, Eye, EyeOff, MapPin, CreditCard
+  CheckCircle, TrendingUp, AlertTriangle, Info, Calendar, Mail, Phone, Eye, EyeOff, MapPin, CreditCard, Zap
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
-import { Hospital, PharmaCompany, MedicalRep, HospitalUser, PassApplication, IssuedPass, AuthUser } from '../types';
+import { Hospital, PharmaCompany, MedicalRep, HospitalUser, PassApplication, IssuedPass, AuthUser, AuditLog } from '../types';
 import { FeedbackContext } from '../App';
 
 interface SuperAdminDashboardProps {
@@ -24,15 +24,11 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
   const [passes, setPasses] = useState<IssuedPass[]>([]);
   
   // UI States
-  const [activeTab, setActiveTab] = useState<'hospitals' | 'companies' | 'monitoring' | 'health' | 'profile'>('hospitals');
-  
-  // Audit State
-  const [auditData, setAuditData] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'hospitals' | 'companies' | 'monitoring'>('hospitals');
   const [isAuditing, setIsAuditing] = useState(false);
-
-  // Password Update State
-  const [passwordData, setPasswordData] = useState({ new: '', confirm: '' });
-
+  const [auditData, setAuditData] = useState<AuditLog[]>([]);
+  const [systemIssues, setSystemIssues] = useState<{ type: 'error' | 'warning' | 'info', message: string, details: string }[]>([]);
+  
   // Hospital Modal States
   const [isHospitalModalOpen, setIsHospitalModalOpen] = useState(false);
   const [editingHospital, setEditingHospital] = useState<Partial<Hospital> | null>(null);
@@ -50,52 +46,77 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     refreshData();
   }, []);
 
-  const runAudit = async () => {
-    setIsAuditing(true);
-    try {
-      const response = await fetch('/api/admin/audit-users');
-      const data = await response.json();
-      setAuditData(data);
-      showFeedback("System audit completed. Security signatures verified.");
-    } catch (err) {
-      showFeedback("Audit failed. Check server connectivity.", "error");
-    } finally {
-      setIsAuditing(false);
-    }
-  };
-
   const refreshData = async () => {
     setHospitals(await storageService.getHospitals());
     setCompanies(await storageService.getCompanies());
     setMrs(await storageService.getMRs());
     setApps(await storageService.getApplications());
     setPasses(await storageService.getPasses());
-    if (activeTab === 'health') runAudit();
+    
+    const logs = await storageService.getAuditLogs();
+    setAuditData(logs);
+    detectSystemIssues(logs);
   };
 
-  useEffect(() => {
-    if (activeTab === 'health') runAudit();
-  }, [activeTab]);
+  const detectSystemIssues = (logs: AuditLog[]) => {
+    const issues: { type: 'error' | 'warning' | 'info', message: string, details: string }[] = [];
+    
+    // 1. Check for hospitals without sessions
+    hospitals.forEach(h => {
+      if (!h.supportedSessions || h.supportedSessions.length === 0) {
+        issues.push({ type: 'error', message: `Hospital Configuration Error: ${h.name}`, details: 'No supported sessions configured. MRs cannot apply for passes.' });
+      }
+      
+      const passLimits = h.passLimits || {};
+      const totalPassLimit = Object.values(passLimits).reduce((a: number, b: any) => a + (Number(b) || 0), 0) as number;
+      if (totalPassLimit < 5) {
+        issues.push({ type: 'warning', message: `Low Capacity Alert: ${h.name}`, details: `Total daily pass limit is only ${totalPassLimit}. This may cause high rejection rates.` });
+      }
+    });
 
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passwordData.new !== passwordData.confirm) {
-      showFeedback("New passwords do not match.", "error");
-      return;
-    }
-    if (passwordData.new.length < 6) {
-      showFeedback("New password must be at least 6 characters.", "error");
-      return;
+    // 2. Check for companies without MRs or with many suspended MRs
+    companies.forEach(c => {
+      const companyMRs = mrs.filter(m => m.companyName === c.name);
+      const activeMRCount = companyMRs.filter(m => m.status === 'active').length;
+      const suspendedMRCount = companyMRs.filter(m => m.status === 'suspended').length;
+
+      if (companyMRs.length === 0) {
+        issues.push({ type: 'warning', message: `Inactive Partner: ${c.name}`, details: 'No representatives registered for this company.' });
+      } else if (suspendedMRCount > activeMRCount && activeMRCount > 0) {
+        issues.push({ type: 'info', message: `High Suspension Rate: ${c.name}`, details: `${suspendedMRCount} out of ${companyMRs.length} representatives are currently suspended.` });
+      }
+    });
+
+    // 3. Check for expired SLCPI IDs
+    const now = new Date();
+    mrs.forEach(mr => {
+      if (mr.slcpiExpiry) {
+        const expiryDate = new Date(mr.slcpiExpiry);
+        if (expiryDate < now) {
+          issues.push({ type: 'error', message: `Compliance Breach: ${mr.fullName}`, details: `SLCPI ID expired on ${expiryDate.toLocaleDateString()}. Gate entry should be restricted.` });
+        } else {
+          const daysToExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysToExpiry <= 7) {
+            issues.push({ type: 'warning', message: `Upcoming Expiry: ${mr.fullName}`, details: `SLCPI ID expires in ${daysToExpiry} days (${expiryDate.toLocaleDateString()}).` });
+          }
+        }
+      }
+    });
+
+    // 4. Check for stale pass applications (applied but not processed for > 24h)
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const staleApps = apps.filter(a => a.status === 'applied' && new Date(a.createdAt) < twentyFourHoursAgo);
+    if (staleApps.length > 0) {
+      issues.push({ type: 'warning', message: 'Stale Applications Detected', details: `${staleApps.length} pass applications have been pending for more than 24 hours.` });
     }
 
-    try {
-      await storageService.updatePassword(user.id, passwordData.new.trim());
-      showFeedback("Password updated successfully.", "success");
-      setPasswordData({ new: '', confirm: '' });
-    } catch (error) {
-      console.error("Password update failed:", error);
-      showFeedback("Failed to update password.", "error");
-    }
+    // 5. Check for recent failed logins or errors in logs
+    const recentErrors = logs.filter(l => l.action.includes('ERROR') || l.action.includes('FAILED')).slice(0, 5);
+    recentErrors.forEach(l => {
+      issues.push({ type: 'error', message: `System Alert: ${l.action}`, details: `${l.details} (at ${new Date(l.timestamp).toLocaleString()})` });
+    });
+
+    setSystemIssues(issues);
   };
 
   const handleSaveHospital = async (e: React.FormEvent) => {
@@ -149,8 +170,8 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
       const securityId = editingHospital.id ? (hospitalUsers.find(user => user.hospitalId === hospitalId && user.role === 'SECURITY')?.id) : undefined;
 
       const u: HospitalUser[] = [
-        { ...(adminId ? { id: adminId } : {}), hospitalId, role: 'ADMIN', fullName: adminData.fullName, mobileNumber: adminData.mobileNumber.trim(), password: adminData.password ? adminData.password.trim() : undefined } as HospitalUser,
-        { ...(securityId ? { id: securityId } : {}), hospitalId, role: 'SECURITY', fullName: securityData.fullName, mobileNumber: securityData.mobileNumber.trim(), password: securityData.password ? securityData.password.trim() : undefined } as HospitalUser
+        { ...(adminId ? { id: adminId } : {}), hospitalId, role: 'ADMIN', fullName: adminData.fullName, mobileNumber: adminData.mobileNumber.trim(), password: adminData.password } as HospitalUser,
+        { ...(securityId ? { id: securityId } : {}), hospitalId, role: 'SECURITY', fullName: securityData.fullName, mobileNumber: securityData.mobileNumber.trim(), password: securityData.password } as HospitalUser
       ];
       
       try {
@@ -214,7 +235,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
       contactNumber: editingCompany.contactNumber || '',
       financeEmail: editingCompany.financeEmail || '',
       adminMobile: (editingCompany.adminMobile || '').trim(),
-      adminPassword: editingCompany.adminPassword ? editingCompany.adminPassword.trim() : undefined,
+      adminPassword: editingCompany.adminPassword,
       contactEmail: editingCompany.contactEmail || '',
       isActive: editingCompany.isActive ?? true,
     } as PharmaCompany;
@@ -246,9 +267,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
       <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm w-fit gap-1 overflow-x-auto max-w-full">
         <button onClick={() => setActiveTab('hospitals')} className={`px-4 md:px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'hospitals' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Building2 className="h-4 w-4" /> Hospitals</button>
         <button onClick={() => setActiveTab('companies')} className={`px-4 md:px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'companies' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Briefcase className="h-4 w-4" /> Companies</button>
-        <button onClick={() => setActiveTab('monitoring')} className={`px-4 md:px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'monitoring' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Activity className="h-4 w-4" /> Monitoring</button>
-        <button onClick={() => setActiveTab('health')} className={`px-4 md:px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'health' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ShieldCheck className="h-4 w-4" /> System Health</button>
-        <button onClick={() => setActiveTab('profile')} className={`px-4 md:px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'profile' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Lock className="h-4 w-4" /> Profile & Security</button>
+        <button onClick={() => setActiveTab('monitoring')} className={`px-4 md:px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'monitoring' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Activity className="h-4 w-4" /> System Health</button>
       </div>
 
       {activeTab === 'hospitals' && (
@@ -377,227 +396,116 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
         </section>
       )}
 
-      {/* Monitoring Dashboard */}
       {activeTab === 'monitoring' && (
-        <section className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase mb-1">Total System MRs</p><h3 className="text-3xl font-black text-slate-800">{mrs.length}</h3></div>
-             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase mb-1">Active Hospitals</p><h3 className="text-3xl font-black text-slate-800">{hospitals.filter(h => h.isActive).length}</h3></div>
-             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase mb-1">Total Pass Apps</p><h3 className="text-3xl font-black text-slate-800">{apps.length}</h3></div>
-             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase mb-1">Total Gate Entries</p><h3 className="text-3xl font-black text-slate-800">{passes.filter(p => p.entryStatus === 'entered').length}</h3></div>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-               <h4 className="font-black text-slate-800 mb-6 flex items-center gap-2"><TrendingUp className="h-5 w-5 text-indigo-600" /> Recent System Traffic</h4>
-               <div className="space-y-4">
-                 {apps.slice(-6).reverse().map(a => {
-                   const mr = mrs.find(m => m.id === a.mrId);
-                   const hosp = hospitals.find(h => h.id === a.hospitalId);
-                   return (
-                     <div key={a.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                       <div className="flex items-center gap-3">
-                         <div className="bg-white p-2 rounded-xl"><User className="h-4 w-4 text-slate-400" /></div>
-                         <div>
-                            <p className="text-xs font-black">{mr?.fullName || 'Unknown User'}</p>
-                            <p className="text-[10px] text-slate-400 truncate max-w-[150px]">{hosp?.name || 'Facility Access'}</p>
-                         </div>
-                       </div>
-                       <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${a.status === 'selected' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{a.status.toUpperCase()}</span>
-                     </div>
-                   );
-                 })}
-                 {apps.length === 0 && <p className="text-center py-10 text-slate-400 italic text-xs">No activity logged in the system yet.</p>}
-               </div>
-            </div>
-
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-               <h4 className="font-black text-slate-800 mb-6 flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-amber-500" /> System Governance</h4>
-               <div className="space-y-3">
-                 {mrs.filter(m => !m.slcpiPhoto).length > 0 && (
-                   <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-center gap-3">
-                     <AlertTriangle className="h-4 w-4 text-amber-500" />
-                     <p className="text-xs font-bold text-amber-800">{mrs.filter(m => !m.slcpiPhoto).length} users have missing compliance ID photos.</p>
-                   </div>
-                 )}
-                 <div className="p-4 bg-green-50 rounded-2xl border border-green-100 flex items-center gap-3">
-                   <CheckCircle className="h-4 w-4 text-green-600" />
-                   <p className="text-xs font-bold text-green-800">Operational cluster health: Normal. Data synchronization active.</p>
-                 </div>
-                 {hospitals.some(h => !h.isActive) && (
-                   <div className="p-4 bg-red-50 rounded-2xl border border-red-100 flex items-center gap-3">
-                     <Power className="h-4 w-4 text-red-500" />
-                     <p className="text-xs font-bold text-red-800">{hospitals.filter(h => !h.isActive).length} facilities are currently offline.</p>
-                   </div>
-                 )}
-               </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'health' && (
-        <section className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h3 className="text-xl font-bold">Security & Integrity Audit</h3>
-              <p className="text-xs text-slate-500 font-medium">Verifying password hashing and credential health across all system nodes.</p>
-            </div>
-            <button 
-              onClick={runAudit}
-              disabled={isAuditing}
-              className="bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 shadow-lg active:scale-95 transition-all disabled:opacity-50"
-            >
-              {isAuditing ? <Clock className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-              RUN INTEGRITY CHECK
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">User Identity</th>
-                  <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">System Role</th>
-                  <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Login ID</th>
-                  <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Security Status</th>
-                  <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {auditData.map(user => (
-                  <tr key={user.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400">
-                          <User className="h-4 w-4" />
+        <section className="space-y-6 animate-in fade-in duration-300">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold flex items-center gap-2"><Activity className="h-5 w-5 text-indigo-600" /> System Pulse & Diagnostics</h3>
+                  <span className="px-3 py-1 bg-green-50 text-green-600 text-[10px] font-black rounded-full uppercase tracking-widest">All Services Online</span>
+                </div>
+                
+                <div className="space-y-4">
+                  {systemIssues.length > 0 ? (
+                    systemIssues.map((issue, idx) => (
+                      <div key={idx} className={`p-4 rounded-2xl border flex gap-4 ${
+                        issue.type === 'error' ? 'bg-red-50 border-red-100' : 
+                        issue.type === 'warning' ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'
+                      }`}>
+                        <div className={`p-2 rounded-xl h-fit ${
+                          issue.type === 'error' ? 'bg-red-100 text-red-600' : 
+                          issue.type === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
+                        }`}>
+                          <AlertTriangle className="h-5 w-5" />
                         </div>
-                        <span className="text-xs font-black text-slate-700">{user.fullName}</span>
+                        <div>
+                          <p className="font-bold text-slate-800">{issue.message}</p>
+                          <p className="text-xs text-slate-500 mt-1">{issue.details}</p>
+                        </div>
                       </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="text-[9px] font-black uppercase px-2 py-1 bg-slate-100 rounded text-slate-500 tracking-tighter">
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-xs font-mono text-slate-500">{user.mobile}</td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${
-                          user.status === 'Secure Hash' ? 'bg-green-500' : 
-                          user.status === 'No Password' ? 'bg-red-500' : 'bg-amber-500'
-                        }`} />
-                        <span className={`text-[10px] font-bold ${
-                          user.status === 'Secure Hash' ? 'text-green-600' : 
-                          user.status === 'No Password' ? 'text-red-600' : 'text-amber-600'
-                        }`}>{user.status}</span>
+                    ))
+                  ) : (
+                    <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                      <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm font-medium text-slate-400">No critical system issues detected at this time.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><History className="h-5 w-5 text-indigo-600" /> Global Audit Trail</h3>
+                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                  {auditData.map(log => (
+                    <div key={log.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center group hover:bg-white hover:border-indigo-100 transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100 group-hover:bg-indigo-50 transition-colors">
+                          <Zap className="h-4 w-4 text-indigo-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-800 uppercase tracking-tight">{log.action}</p>
+                          <p className="text-[10px] text-slate-400 font-medium">{log.details}</p>
+                        </div>
                       </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <button 
-                        onClick={() => {
-                          // Logic to trigger a reset (could be a modal or direct call)
-                          showFeedback(`Password reset requested for ${user.fullName}. Use the management tabs to set a new password.`, "success");
-                        }}
-                        className="p-2 hover:bg-indigo-50 rounded-lg text-indigo-600 transition-all"
-                        title="Reset Credentials"
-                      >
-                        <Key className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {auditData.length === 0 && !isAuditing && (
-                  <tr>
-                    <td colSpan={5} className="py-20 text-center text-slate-400 italic text-xs">
-                      No audit data available. Click "RUN INTEGRITY CHECK" to scan the system.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'profile' && (
-        <section className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-100 max-w-2xl mx-auto">
-          <div className="flex items-center gap-4 mb-10">
-            <div className="bg-indigo-600 p-3 rounded-2xl shadow-lg">
-              <ShieldCheck className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-black text-slate-800 tracking-tighter">Root Profile & Security</h3>
-              <p className="text-xs font-black text-indigo-500 uppercase tracking-widest">System Administrator Node</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-            <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Identity Details</p>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Full Name</label>
-                  <p className="text-sm font-black text-slate-800">{user.fullName}</p>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Mobile Number</label>
-                  <p className="text-sm font-black text-slate-800">{user.mobileNumber}</p>
+                      <div className="text-right">
+                        <p className="text-[10px] font-black text-slate-400 uppercase">{new Date(log.timestamp).toLocaleDateString()}</p>
+                        <p className="text-[9px] text-slate-300 font-bold">{new Date(log.timestamp).toLocaleTimeString()}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-            <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">System Access</p>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Role</label>
-                  <p className="text-sm font-black text-indigo-600">SUPER_ADMIN</p>
+
+            <div className="space-y-6">
+              <div className="bg-indigo-600 p-8 rounded-3xl text-white shadow-xl shadow-indigo-200">
+                <h4 className="text-lg font-black mb-4 uppercase tracking-tighter">System Capacity</h4>
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex justify-between text-[10px] font-black uppercase mb-2">
+                      <span>Hospital Nodes</span>
+                      <span>{hospitals.length} Active</span>
+                    </div>
+                    <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-white w-3/4"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[10px] font-black uppercase mb-2">
+                      <span>Partner Entities</span>
+                      <span>{companies.length} Active</span>
+                    </div>
+                    <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-white w-1/2"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[10px] font-black uppercase mb-2">
+                      <span>Field Representatives</span>
+                      <span>{mrs.length} Registered</span>
+                    </div>
+                    <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-white w-full"></div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">User ID</label>
-                  <p className="text-xs font-mono text-slate-500 truncate">{user.id}</p>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Quick Stats</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase">Total Apps</p>
+                    <p className="text-2xl font-black text-slate-800">{apps.length}</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase">Passes Issued</p>
+                    <p className="text-2xl font-black text-indigo-600">{passes.length}</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="border-t border-slate-100 pt-10">
-            <h4 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-              <Key className="h-5 w-5 text-indigo-600" />
-              Update Credentials
-            </h4>
-            <form onSubmit={handleUpdatePassword} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">New Password</label>
-                  <input 
-                    type="password" 
-                    required
-                    value={passwordData.new}
-                    onChange={e => setPasswordData({...passwordData, new: e.target.value})}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    placeholder="Min. 6 characters"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Confirm Password</label>
-                  <input 
-                    type="password" 
-                    required
-                    value={passwordData.confirm}
-                    onChange={e => setPasswordData({...passwordData, confirm: e.target.value})}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    placeholder="Repeat new password"
-                  />
-                </div>
-              </div>
-              <button 
-                type="submit"
-                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                <Lock className="h-4 w-4" /> Update Security Credentials
-              </button>
-            </form>
           </div>
         </section>
       )}
@@ -652,7 +560,9 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                 <div className="grid grid-cols-2 gap-3">
                   <input required type="text" value={securityData.fullName} onChange={e => setSecurityData({...securityData, fullName: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Full Name" />
                   <input required type="text" value={securityData.mobileNumber} onChange={e => setSecurityData({...securityData, mobileNumber: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Login ID" />
-                  <input required={!editingHospital?.id} type={showPasswords ? "text" : "password"} value={securityData.password} onChange={e => setSecurityData({...securityData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold col-span-2" placeholder={editingHospital?.id ? "Set New Guard Password (leave blank to keep current)" : "Guard Password"} />
+                  {!editingHospital?.id && (
+                    <input required type={showPasswords ? "text" : "password"} value={securityData.password} onChange={e => setSecurityData({...securityData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold col-span-2" placeholder="Guard Password" />
+                  )}
                 </div>
               </div>
 

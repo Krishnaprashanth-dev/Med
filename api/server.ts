@@ -38,9 +38,13 @@ async function startServer() {
 
   // API Routes
   app.post('/api/auth/login', async (req, res) => {
-    const { mobile, password, role } = req.body;
+    let { mobile, password, role } = req.body;
     
     try {
+      // Trim inputs to avoid whitespace issues
+      mobile = typeof mobile === 'string' ? mobile.trim() : mobile;
+      password = typeof password === 'string' ? password.trim() : password;
+
       console.log(`[Login Attempt] Mobile: ${mobile}, Role: ${role}`);
       
       // 1. Root Bypass (Securely handled on server)
@@ -84,19 +88,21 @@ async function startServer() {
       for (const p of profiles) {
         if (!p.password || typeof p.password !== 'string') continue;
         
-        // Check if it's a bcrypt hash
-        const isHash = p.password.startsWith('$2a$') || p.password.startsWith('$2b$');
+        // Check if it's a bcrypt hash (Postgres crypt uses $2y$ for blowfish)
+        const isHash = p.password.startsWith('$2a$') || p.password.startsWith('$2b$') || p.password.startsWith('$2y$');
         
         let isMatch = false;
         if (isHash) {
           try {
+            // Use bcrypt.compare for hashed passwords
             isMatch = await bcrypt.compare(password, p.password);
           } catch (e) {
+            console.warn(`[Login] Bcrypt compare failed for user ${mobile}, falling back to plain text check`);
             // If compare fails (e.g. malformed hash), fallback to plain text check
             isMatch = password === p.password;
           }
         } else {
-          // Plain text comparison
+          // Plain text comparison for legacy or unhashed passwords
           isMatch = password === p.password;
         }
         
@@ -178,7 +184,7 @@ async function startServer() {
 
       const auditResults = profiles.map(p => {
         const hasPassword = !!p.password;
-        const isHash = p.password?.startsWith('$2a$') || p.password?.startsWith('$2b$');
+        const isHash = p.password?.startsWith('$2a$') || p.password?.startsWith('$2b$') || p.password?.startsWith('$2y$');
         
         return {
           id: p.id,

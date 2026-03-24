@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { lotteryService } from '../services/lotteryService';
-import { MedicalRep, Hospital, PassApplication, IssuedPass, MRHospitalApproval, SessionType, PharmaCompany, EntryLog } from '../types';
+import { MedicalRep, Hospital, PassApplication, IssuedPass, MRHospitalApproval, SessionType, PharmaCompany, EntryLog, HospitalUser } from '../types';
 import { FeedbackContext } from '../App';
 
 interface AdminDashboardProps {
@@ -33,6 +33,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   const [activeTab, setActiveTab] = useState<'lottery' | 'history' | 'approvals' | 'companies' | 'settings'>('lottery');
   const [settingsTab, setSettingsTab] = useState<'profile' | 'sessions' | 'security'>('profile');
   const [passwordData, setPasswordData] = useState({ new: '', confirm: '' });
+  const [securityPasswordData, setSecurityPasswordData] = useState({ new: '', confirm: '' });
+  const [securityUser, setSecurityUser] = useState<HospitalUser | null>(null);
   const [selectedMR, setSelectedMR] = useState<MedicalRep | null>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [showCommitSuccess, setShowCommitSuccess] = useState(false);
@@ -58,6 +60,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
       setPasses(await storageService.getPasses());
       setLogs(await storageService.getLogs());
       setApprovals(await storageService.getApprovals());
+      
+      const hospitalUsers = await storageService.getHospitalUsers();
+      const sec = hospitalUsers.find(u => u.hospitalId === user.hospitalId && u.role === 'SECURITY');
+      if (sec) setSecurityUser(sec);
       
       if (currentHosp && !editingHospital) {
         setEditingHospital({
@@ -118,6 +124,41 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
     } catch (error) {
       console.error("Failed to save settings:", error);
       showFeedback("Failed to save system settings. Connection error.", "error");
+    }
+  };
+
+  const handleUpdateAdminPassword = async () => {
+    if (!passwordData.new || passwordData.new !== passwordData.confirm) {
+      showFeedback("Passwords do not match or are empty", "error");
+      return;
+    }
+    try {
+      await storageService.updatePassword(user.id, passwordData.new);
+      setPasswordData({ new: '', confirm: '' });
+      showFeedback("Your admin password has been updated.");
+    } catch (e: any) {
+      showFeedback(e.message || "Failed to update password", "error");
+    }
+  };
+
+  const handleUpdateSecurityPassword = async () => {
+    if (!securityPasswordData.new || securityPasswordData.new !== securityPasswordData.confirm) {
+      showFeedback("Security passwords do not match or are empty", "error");
+      return;
+    }
+    if (!securityUser) {
+      showFeedback("Security user not found", "error");
+      return;
+    }
+    try {
+      await storageService.saveHospitalUsers([{
+        ...securityUser,
+        password: securityPasswordData.new
+      }]);
+      setSecurityPasswordData({ new: '', confirm: '' });
+      showFeedback("Security personnel password has been updated.");
+    } catch (e: any) {
+      showFeedback(e.message || "Failed to update security password", "error");
     }
   };
 
@@ -489,7 +530,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
           <div className="flex border-b border-slate-100 mb-8 overflow-x-auto">
             <button onClick={() => setSettingsTab('profile')} className={`px-6 py-3 text-[10px] font-black border-b-2 whitespace-nowrap ${settingsTab === 'profile' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>HOSPITAL PROFILE</button>
             <button onClick={() => setSettingsTab('sessions')} className={`px-6 py-3 text-[10px] font-black border-b-2 whitespace-nowrap ${settingsTab === 'sessions' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>SESSIONS & AUTO-SPIN</button>
-            <button onClick={() => setSettingsTab('security')} className={`px-6 py-3 text-[10px] font-black border-b-2 whitespace-nowrap ${settingsTab === 'security' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>SECURITY</button>
+            <button onClick={() => setSettingsTab('security')} className={`px-6 py-3 text-[10px] font-black border-b-2 whitespace-nowrap ${settingsTab === 'security' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>SECURITY & ACCESS</button>
           </div>
 
           <div className="space-y-8">
@@ -600,47 +641,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
               </div>
             )}
             {settingsTab === 'security' && (
-              <form onSubmit={handleUpdatePassword} className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                  <h4 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-tight">Update Access Credentials</h4>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">New Password</label>
-                      <input 
-                        required
-                        type="password" 
-                        value={passwordData.new} 
-                        onChange={e => setPasswordData({...passwordData, new: e.target.value})}
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" 
-                        placeholder="Enter new password"
-                      />
+              <div className="space-y-8 animate-in fade-in duration-300">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600"><Lock className="h-5 w-5" /></div>
+                      <h4 className="font-bold text-slate-800">Admin Security</h4>
                     </div>
-                    <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Confirm New Password</label>
-                      <input 
-                        required
-                        type="password" 
-                        value={passwordData.confirm} 
-                        onChange={e => setPasswordData({...passwordData, confirm: e.target.value})}
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" 
-                        placeholder="Confirm new password"
-                      />
+                    <p className="text-xs text-slate-500 mb-6">Update your personal administrative access password. Use a strong, unique combination.</p>
+                    <div className="space-y-4">
+                      <input type="password" value={passwordData.new} onChange={e => setPasswordData({...passwordData, new: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold" placeholder="New Admin Password" />
+                      <input type="password" value={passwordData.confirm} onChange={e => setPasswordData({...passwordData, confirm: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold" placeholder="Confirm New Password" />
+                      <button onClick={handleUpdateAdminPassword} className="w-full bg-slate-800 text-white font-black py-3 rounded-xl hover:bg-slate-900 transition-all text-xs uppercase tracking-widest">UPDATE MY PASSWORD</button>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-amber-100 rounded-lg text-amber-600"><ShieldCheck className="h-5 w-5" /></div>
+                      <h4 className="font-bold text-slate-800">Gate Security Access</h4>
+                    </div>
+                    <p className="text-xs text-slate-500 mb-6">Manage the password for the gate security personnel account. This affects the Security View login.</p>
+                    <div className="space-y-4">
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 mb-2">
+                        <p className="text-[10px] font-black text-slate-400 uppercase">Current Security Officer</p>
+                        <p className="text-sm font-bold text-slate-700">{securityUser?.fullName || 'Not assigned'}</p>
+                      </div>
+                      <input type="password" value={securityPasswordData.new} onChange={e => setSecurityPasswordData({...securityPasswordData, new: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold" placeholder="New Security Password" />
+                      <input type="password" value={securityPasswordData.confirm} onChange={e => setSecurityPasswordData({...securityPasswordData, confirm: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold" placeholder="Confirm Security Password" />
+                      <button onClick={handleUpdateSecurityPassword} className="w-full bg-indigo-600 text-white font-black py-3 rounded-xl hover:bg-indigo-700 transition-all text-xs uppercase tracking-widest">UPDATE GATE ACCESS</button>
                     </div>
                   </div>
                 </div>
-                <button type="submit" className="w-full bg-slate-800 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-slate-900 transition-all uppercase tracking-widest text-xs">
-                  UPDATE SECURITY KEY
-                </button>
-              </form>
+              </div>
             )}
-            
-            {settingsTab !== 'security' && (
-              <div className="pt-6 border-t border-slate-100">
+
+            <div className="pt-6 border-t border-slate-100">
                 <button onClick={handleSaveHospitalData} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2">
                   <Save className="h-5 w-5" /> SAVE SYSTEM CHANGES
                 </button>
               </div>
-            )}
           </div>
         </section>
       )}
