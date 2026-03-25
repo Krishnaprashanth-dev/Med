@@ -151,10 +151,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
       return;
     }
     try {
-      await storageService.saveHospitalUsers([{
-        ...securityUser,
-        password: securityPasswordData.new
-      }]);
+      await storageService.updatePassword(securityUser.id, securityPasswordData.new);
       setSecurityPasswordData({ new: '', confirm: '' });
       showFeedback("Security personnel password has been updated.");
     } catch (e: any) {
