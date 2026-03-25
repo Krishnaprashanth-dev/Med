@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { 
   Building2, Users, Settings, Plus, Power, Activity, Edit3, Trash2, X, 
   Briefcase, Clock, User, ShieldCheck, Lock, Key, Image as ImageIcon, 
-  CheckCircle, TrendingUp, AlertTriangle, Info, Calendar, Mail, Phone, Eye, EyeOff, MapPin, CreditCard, Zap
+  CheckCircle, TrendingUp, AlertTriangle, Info, Calendar, Mail, Phone, Eye, EyeOff, MapPin, CreditCard, Zap, History
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { Hospital, PharmaCompany, MedicalRep, HospitalUser, PassApplication, IssuedPass, AuthUser, AuditLog } from '../types';
@@ -47,22 +47,28 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
   }, []);
 
   const refreshData = async () => {
-    setHospitals(await storageService.getHospitals());
-    setCompanies(await storageService.getCompanies());
-    setMrs(await storageService.getMRs());
-    setApps(await storageService.getApplications());
-    setPasses(await storageService.getPasses());
+    const freshHospitals = await storageService.getHospitals();
+    const freshCompanies = await storageService.getCompanies();
+    const freshMrs = await storageService.getMRs();
+    const freshApps = await storageService.getApplications();
+    const freshPasses = await storageService.getPasses();
+    const freshLogs = await storageService.getAuditLogs();
+
+    setHospitals(freshHospitals);
+    setCompanies(freshCompanies);
+    setMrs(freshMrs);
+    setApps(freshApps);
+    setPasses(freshPasses);
+    setAuditData(freshLogs);
     
-    const logs = await storageService.getAuditLogs();
-    setAuditData(logs);
-    detectSystemIssues(logs);
+    detectSystemIssues(freshLogs, freshHospitals, freshCompanies, freshMrs, freshApps);
   };
 
-  const detectSystemIssues = (logs: AuditLog[]) => {
+  const detectSystemIssues = (logs: AuditLog[], currentHospitals: Hospital[], currentCompanies: PharmaCompany[], currentMrs: MedicalRep[], currentApps: PassApplication[]) => {
     const issues: { type: 'error' | 'warning' | 'info', message: string, details: string }[] = [];
     
     // 1. Check for hospitals without sessions
-    hospitals.forEach(h => {
+    currentHospitals.forEach(h => {
       if (!h.supportedSessions || h.supportedSessions.length === 0) {
         issues.push({ type: 'error', message: `Hospital Configuration Error: ${h.name}`, details: 'No supported sessions configured. MRs cannot apply for passes.' });
       }
@@ -75,8 +81,8 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     });
 
     // 2. Check for companies without MRs or with many suspended MRs
-    companies.forEach(c => {
-      const companyMRs = mrs.filter(m => m.companyName === c.name);
+    currentCompanies.forEach(c => {
+      const companyMRs = currentMrs.filter(m => m.companyName === c.name);
       const activeMRCount = companyMRs.filter(m => m.status === 'active').length;
       const suspendedMRCount = companyMRs.filter(m => m.status === 'suspended').length;
 
@@ -89,7 +95,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
 
     // 3. Check for expired SLCPI IDs
     const now = new Date();
-    mrs.forEach(mr => {
+    currentMrs.forEach(mr => {
       if (mr.slcpiExpiry) {
         const expiryDate = new Date(mr.slcpiExpiry);
         if (expiryDate < now) {
@@ -105,7 +111,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
 
     // 4. Check for stale pass applications (applied but not processed for > 24h)
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const staleApps = apps.filter(a => a.status === 'applied' && new Date(a.createdAt) < twentyFourHoursAgo);
+    const staleApps = currentApps.filter(a => a.status === 'applied' && new Date(a.createdAt) < twentyFourHoursAgo);
     if (staleApps.length > 0) {
       issues.push({ type: 'warning', message: 'Stale Applications Detected', details: `${staleApps.length} pass applications have been pending for more than 24 hours.` });
     }

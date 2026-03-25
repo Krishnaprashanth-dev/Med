@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { 
   Play, Sparkles, CheckCircle, Clock, UserPlus, Users, Settings, Save, X, 
-  Sun, Moon, Maximize, User, MapPin, ShieldCheck, 
+  Sun, Moon, Maximize, User, MapPin, ShieldCheck, Lock,
   Mail, Phone, Briefcase, CheckCircle2, Eye, 
   Zap, Timer, HelpCircle, EyeOff, AlertTriangle, History, Search, Filter, Calendar, ChevronRight, ExternalLink,
   QrCode, CheckCircle2 as SuccessIcon, Trash2, Info
