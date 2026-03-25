@@ -76,7 +76,7 @@ export const CompanyService = {
         };
 
         if (c.adminPassword) {
-          profileUpdate.password = c.adminPassword.trim();
+          profileUpdate.password = await SessionService.hashPassword(c.adminPassword.trim());
         }
 
         console.log(`[CompanyService] Upserting company admin profile:`, { id: profileUpdate.id, role: profileUpdate.role, mobile: profileUpdate.mobile_number, hasPassword: !!profileUpdate.password });

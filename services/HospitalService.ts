@@ -111,7 +111,7 @@ export const HospitalService = {
       };
 
       if (u.password) {
-        profileUpdate.password = u.password.trim();
+        profileUpdate.password = await SessionService.hashPassword(u.password.trim());
       }
 
       console.log(`[HospitalService] Upserting profile:`, { id: profileUpdate.id, role: profileUpdate.role, mobile: profileUpdate.mobile_number, hasPassword: !!profileUpdate.password });
