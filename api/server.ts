@@ -111,30 +111,16 @@ async function startServer() {
           continue;
         }
         
-        const inputPass = password.trim();
-        const storedPass = p.password.trim();
-        
-        console.log(`[Login] Testing profile: ${p.full_name} (${p.role}), Stored Pass Prefix: ${storedPass.substring(0, 4)}, Input Pass Length: ${inputPass.length}`);
+        console.log(`[Login] Testing profile: ${p.full_name} (${p.role}), Stored Pass Prefix: ${p.password.substring(0, 4)}, Input Pass Length: ${password.length}`);
         
         let isMatch = false;
-        
-        // 1. Try bcrypt comparison if it looks like a hash
-        const isHash = storedPass.startsWith('$2a$') || storedPass.startsWith('$2b$') || storedPass.startsWith('$2y$');
-        if (isHash) {
-          try {
-            isMatch = await bcrypt.compare(inputPass, storedPass);
-            console.log(`[Login] Bcrypt match result for ${p.full_name}: ${isMatch}`);
-          } catch (e) {
-            console.error(`[Login] Bcrypt error for ${p.full_name}:`, e);
-          }
-        }
-
-        // 2. Fallback to plain text comparison (robust check)
-        if (!isMatch) {
-          isMatch = (inputPass === storedPass);
-          if (isMatch) {
-            console.log(`[Login] Plain-text match found for ${p.full_name}.`);
-          }
+        try {
+          // Strictly use bcrypt comparison - NO plain text fallback as requested
+          isMatch = await bcrypt.compare(password, p.password);
+          console.log(`[Login] Bcrypt match result: ${isMatch}`);
+        } catch (e) {
+          console.error(`[Login] Bcrypt error for ${p.full_name}:`, e);
+          isMatch = false;
         }
         
         if (isMatch) {
