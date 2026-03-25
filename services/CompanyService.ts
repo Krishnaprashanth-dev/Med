@@ -72,6 +72,7 @@ export const CompanyService = {
           role: 'COMPANY',
           full_name: `${companyData.name} Administrator`,
           mobile_number: c.adminMobile,
+          login_id: c.adminMobile.trim(), // For companies, adminMobile is the login ID
         };
 
         if (c.adminPassword) {
