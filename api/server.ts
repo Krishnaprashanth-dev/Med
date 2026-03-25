@@ -70,25 +70,18 @@ async function startServer() {
       }
 
       // 2. Lookup user in Supabase
-      // For MRs, we strictly use mobile_number. For others, mobile or login_id.
-      let query = supabase
+      // We check both mobile_number and full_name as "Identity"
+      const { data: profiles, error } = await supabase
         .from('profiles')
-        .select('*, mrs(*, pharma_companies(name))');
-      
-      if (role === 'MR') {
-        query = query.eq('mobile_number', mobile);
-      } else {
-        query = query.or(`mobile_number.eq."${mobile}",login_id.eq."${mobile}"`);
-      }
-
-      const { data: profiles, error } = await query;
+        .select('*, mrs(*, pharma_companies(name))')
+        .or(`mobile_number.eq."${mobile}",full_name.eq."${mobile}"`);
 
       if (error) {
         console.error('[Supabase Query Error]', error);
         throw error;
       }
       if (!profiles || profiles.length === 0) {
-        console.log(`[Login] No profiles found for identity: ${mobile} with role: ${role}`);
+        console.log(`[Login] No profiles found for identity: ${mobile}`);
         return res.status(401).json({ success: false, message: 'Invalid credentials. Account not found.' });
       }
 
@@ -106,21 +99,20 @@ async function startServer() {
       let passwordMatchFound = false;
 
       for (const p of profiles) {
-        if (!p.password || typeof p.password !== 'string') {
-          console.log(`[Login] Profile ${p.full_name} has no valid password field.`);
-          continue;
-        }
+        if (!p.password || typeof p.password !== 'string') continue;
         
-        console.log(`[Login] Testing profile: ${p.full_name} (${p.role}), Stored Pass Prefix: ${p.password.substring(0, 4)}, Input Pass Length: ${password.length}`);
+        // Check if it's a bcrypt hash
+        const isHash = p.password.startsWith('$2a$') || p.password.startsWith('$2b$') || p.password.startsWith('$2y$');
         
         let isMatch = false;
-        try {
-          // Strictly use bcrypt comparison - NO plain text fallback as requested
-          isMatch = await bcrypt.compare(password, p.password);
-          console.log(`[Login] Bcrypt match result: ${isMatch}`);
-        } catch (e) {
-          console.error(`[Login] Bcrypt error for ${p.full_name}:`, e);
-          isMatch = false;
+        if (isHash) {
+          try {
+            isMatch = await bcrypt.compare(password, p.password);
+          } catch (e) {
+            isMatch = password === p.password;
+          }
+        } else {
+          isMatch = password === p.password;
         }
         
         if (isMatch) {
@@ -140,13 +132,8 @@ async function startServer() {
       }
 
       if (!passwordMatchFound) {
-        console.log(`[Login] Password mismatch for all found profiles (${profiles.length} profiles checked)`);
-        const debugInfo = process.env.NODE_ENV !== 'production' ? { 
-          profilesFound: profiles.length,
-          rolesFound: profiles.map(p => p.role),
-          identities: profiles.map(p => ({ mobile: p.mobile_number, name: p.full_name, loginId: p.login_id }))
-        } : undefined;
-        return res.status(401).json({ success: false, message: 'Invalid password.', debug: debugInfo });
+        console.log(`[Login] Password mismatch for all found profiles`);
+        return res.status(401).json({ success: false, message: 'Invalid password.' });
       }
 
       if (!matchedProfile) {

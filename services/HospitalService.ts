@@ -105,7 +105,6 @@ export const HospitalService = {
         id: targetId,
         hospital_id: u.hospitalId,
         mobile_number: u.mobileNumber,
-        login_id: u.mobileNumber.trim(), // For admins, mobileNumber is usually the login ID
         role: u.role === 'ADMIN' ? 'HOSPITAL_ADMIN' : u.role,
         full_name: u.fullName
       };

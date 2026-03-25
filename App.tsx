@@ -225,15 +225,7 @@ const App: React.FC = () => {
         console.error(`[Login] API Error: ${response.status} ${response.statusText}`);
         const errorText = await response.text();
         console.error(`[Login] Error Body:`, errorText);
-        
-        try {
-          const errorJson = JSON.parse(errorText);
-          if (errorJson.debug) console.log("[Login Debug Info]", errorJson.debug);
-          showFeedback(errorJson.message || `Authentication failed (${response.status}).`, 'error');
-        } catch (e) {
-          showFeedback(`Authentication failed (Server Error: ${response.status}).`, 'error');
-        }
-        
+        showFeedback(`Authentication failed (Server Error: ${response.status}).`, 'error');
         setIsLoggingIn(false);
         return;
       }
@@ -241,7 +233,6 @@ const App: React.FC = () => {
       const result = await response.json();
 
       if (!result.success) {
-        if (result.debug) console.log("[Login Debug Info]", result.debug);
         showFeedback(result.message || "Authentication failed.", 'error');
         setIsLoggingIn(false);
         return;

@@ -62,7 +62,6 @@ export const MRService = {
         // CRITICAL: Use mobileNumber for the mobile_number column in profiles table
         // because that's what the login page uses for authentication for MRs.
         mobile_number: mr.mobileNumber.trim(),
-        login_id: mr.loginId?.trim() || mr.mobileNumber.trim(),
       };
       
       // Only include password if it's provided (new MR or explicit change)
