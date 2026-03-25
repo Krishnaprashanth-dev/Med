@@ -190,11 +190,17 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
       const securityId = editingHospital.id ? (hospitalUsers.find(user => user.hospitalId === hospitalId && user.role === 'SECURITY')?.id) : undefined;
 
       const u: HospitalUser[] = [
-        { ...(adminId ? { id: adminId } : {}), hospitalId, role: 'ADMIN', fullName: adminData.fullName, mobileNumber: adminData.mobileNumber.trim(), password: adminData.password } as HospitalUser,
-        { ...(securityId ? { id: securityId } : {}), hospitalId, role: 'SECURITY', fullName: securityData.fullName, mobileNumber: securityData.mobileNumber.trim(), password: securityData.password } as HospitalUser
+        { ...(adminId ? { id: adminId } : {}), hospitalId, role: 'ADMIN', fullName: adminData.fullName, mobileNumber: adminData.mobileNumber.trim(), password: editingHospital.id ? '' : adminData.password } as HospitalUser,
+        { ...(securityId ? { id: securityId } : {}), hospitalId, role: 'SECURITY', fullName: securityData.fullName, mobileNumber: securityData.mobileNumber.trim(), password: editingHospital.id ? '' : securityData.password } as HospitalUser
       ];
       
       try {
+        // CRITICAL FIX: Use updatePassword directly for existing admins to ensure hashing/persistence
+        if (editingHospital.id && adminId && adminData.password) {
+          await storageService.updatePassword(adminId, adminData.password);
+          console.log(`[SuperAdmin] Admin password updated via SessionService for: ${adminId}`);
+        }
+        
         await storageService.saveHospitalUsers(u);
         storageService.log('SUPER_ADMIN', 'HOSPITAL_SAVE', `Hospital: ${savedHospital.name} (ID: ${hospitalId})`);
       } catch (err: any) {
@@ -265,18 +271,24 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
       contactNumber: editingCompany.contactNumber || '',
       financeEmail: editingCompany.financeEmail || '',
       adminMobile: (editingCompany.adminMobile || '').trim(),
-      adminPassword: editingCompany.adminPassword,
+      adminPassword: editingCompany.id ? '' : editingCompany.adminPassword,
       contactEmail: editingCompany.contactEmail || '',
       isActive: editingCompany.isActive ?? true,
     } as PharmaCompany;
 
     try {
+      // CRITICAL FIX: Use updatePassword directly for existing company admins
+      if (editingCompany.id && editingCompany.adminPassword) {
+        await storageService.updatePassword(editingCompany.id, editingCompany.adminPassword);
+        console.log(`[SuperAdmin] Company admin password updated via SessionService for: ${editingCompany.id}`);
+      }
+      
       await storageService.saveCompanies([companyData]);
       storageService.log('SUPER_ADMIN', 'COMPANY_SAVE', `Company: ${companyData.name}`);
       refreshData();
       setIsCompanyModalOpen(false);
       setEditingCompany(null);
-      showFeedback(`Pharmaceutical company ${companyData.name} registered.`);
+      showFeedback(editingCompany.id ? "Partner entity updated." : `Pharmaceutical company ${companyData.name} registered.`);
     } catch (err: any) {
       console.error("Company save error:", err);
       showFeedback(err.message || "Failed to register company", "error");
@@ -578,7 +590,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                 <div className="grid grid-cols-2 gap-3">
                   <input required type="text" value={adminData.fullName} onChange={e => setAdminData({...adminData, fullName: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Admin Full Name" />
                   <input required type="text" value={adminData.mobileNumber} onChange={e => setAdminData({...adminData, mobileNumber: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Admin Login ID" />
-                  <input required={!editingHospital?.id} type={showPasswords ? "text" : "password"} value={adminData.password} onChange={e => setAdminData({...adminData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder={editingHospital?.id ? "Set New Admin Password" : "Admin Password"} />
+                  <input required={!editingHospital?.id} type={showPasswords ? "text" : "password"} value={adminData.password} onChange={e => setAdminData({...adminData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder={editingHospital?.id ? "Set New Admin Password (Optional)" : "Admin Password"} />
                   <input required={!editingHospital?.id && !!adminData.password} type={showPasswords ? "text" : "password"} value={adminData.confirmPassword} onChange={e => setAdminData({...adminData, confirmPassword: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Confirm Admin Password" />
                 </div>
               </div>
@@ -591,8 +603,12 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                 <div className="grid grid-cols-2 gap-3">
                   <input required type="text" value={securityData.fullName} onChange={e => setSecurityData({...securityData, fullName: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Full Name" />
                   <input required type="text" value={securityData.mobileNumber} onChange={e => setSecurityData({...securityData, mobileNumber: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Login ID" />
-                  <input required={!editingHospital?.id} type={showPasswords ? "text" : "password"} value={securityData.password} onChange={e => setSecurityData({...securityData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder={editingHospital?.id ? "Set New Guard Password" : "Guard Password"} />
-                  <input required={!editingHospital?.id && !!securityData.password} type={showPasswords ? "text" : "password"} value={securityData.confirmPassword} onChange={e => setSecurityData({...securityData, confirmPassword: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Confirm Guard Password" />
+                  {!editingHospital?.id && (
+                    <>
+                      <input required type={showPasswords ? "text" : "password"} value={securityData.password} onChange={e => setSecurityData({...securityData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Password" />
+                      <input required={!!securityData.password} type={showPasswords ? "text" : "password"} value={securityData.confirmPassword} onChange={e => setSecurityData({...securityData, confirmPassword: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Confirm Guard Password" />
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -640,7 +656,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                     <div className="space-y-2">
                        <input required type="text" value={editingCompany?.adminMobile || ''} onChange={e => setEditingCompany({...editingCompany, adminMobile: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder="Admin Login ID" />
                        <div className="grid grid-cols-2 gap-2">
-                         <input required={!editingCompany?.id} type={showPasswords ? "text" : "password"} value={editingCompany?.adminPassword || ''} onChange={e => setEditingCompany({...editingCompany, adminPassword: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder={editingCompany?.id ? "Set New Password" : "Admin Password"} />
+                         <input required={!editingCompany?.id} type={showPasswords ? "text" : "password"} value={editingCompany?.adminPassword || ''} onChange={e => setEditingCompany({...editingCompany, adminPassword: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder={editingCompany?.id ? "Set New Password (Optional)" : "Admin Password"} />
                          <input required={!editingCompany?.id && !!editingCompany?.adminPassword} type={showPasswords ? "text" : "password"} value={editingCompany?.adminConfirmPassword || ''} onChange={e => setEditingCompany({...editingCompany, adminConfirmPassword: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder="Confirm Password" />
                        </div>
                        <input required type="email" value={editingCompany?.contactEmail || ''} onChange={e => setEditingCompany({...editingCompany, contactEmail: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder="Official Corporate Email" />
