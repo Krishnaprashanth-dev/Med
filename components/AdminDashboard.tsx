@@ -38,7 +38,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   const [selectedMR, setSelectedMR] = useState<MedicalRep | null>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [showCommitSuccess, setShowCommitSuccess] = useState(false);
-  const [lotteryResult, setLotteryResult] = useState<{ success: boolean; count: number; message: string } | null>(null);
+  const [lotteryResult, setLotteryResult] = useState<{ success: boolean; count: number; message: string; selectedMrIds?: string[] } | null>(null);
   const [brief, setBrief] = useState('');
   
   const [historySearch, setHistorySearch] = useState('');
@@ -538,9 +538,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
               {lotteryResult.message}
             </p>
             {lotteryResult.success && lotteryResult.count > 0 && (
-              <div className="mt-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
-                <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Passes Issued</p>
-                <p className="text-3xl font-black text-indigo-600">{lotteryResult.count}</p>
+              <div className="mt-4 space-y-4">
+                <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Passes Issued</p>
+                  <p className="text-3xl font-black text-indigo-600">{lotteryResult.count}</p>
+                </div>
+                
+                {lotteryResult.selectedMrIds && lotteryResult.selectedMrIds.length > 0 && (
+                  <div className="text-left">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-2">Selected Representatives</p>
+                    <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                      {lotteryResult.selectedMrIds.map(id => {
+                        const mr = mrs.find(m => m.id === id);
+                        return (
+                          <div key={id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                              <User className="h-4 w-4 text-indigo-500" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-slate-800">{mr?.fullName || 'Unknown MR'}</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{mr?.companyName}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             <button 
