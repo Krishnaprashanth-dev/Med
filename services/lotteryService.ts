@@ -33,7 +33,7 @@ export const lotteryService = {
     return score;
   },
 
-  runLottery: async (hospitalId: string, session: SessionType): Promise<{ success: boolean; count: number; message: string }> => {
+  runLottery: async (hospitalId: string, session: SessionType): Promise<{ success: boolean; count: number; message: string; selectedMrIds?: string[] }> => {
     const hospitals = await storageService.getHospitals();
     const hosp = hospitals.find(h => h.id === hospitalId);
     if (!hosp) return { success: false, count: 0, message: "Hospital not found" };
@@ -181,6 +181,11 @@ export const lotteryService = {
 
     await storageService.log('SYSTEM', 'LOTTERY_RUN', `Hospital: ${hosp.name}, Session: ${session}, Passes: ${selected.length}`);
 
-    return { success: true, count: selected.length, message: `Successfully issued ${selected.length} passes.` };
+    return { 
+      success: true, 
+      count: selected.length, 
+      message: `Successfully issued ${selected.length} passes.`,
+      selectedMrIds: selected.map(s => s.mrId)
+    };
   }
 };
