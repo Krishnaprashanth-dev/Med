@@ -25,16 +25,16 @@ export const CompanyService = {
       return {
         id: c.id,
         name: c.name,
-        company_code: c.company_code,
+        companyCode: c.company_code,
         address: c.address,
-        contact_number: c.contact_number,
-        finance_email: c.finance_email,
-        contact_email: c.contact_email,
-        is_active: c.is_active,
+        contactNumber: c.contact_number,
+        financeEmail: c.finance_email,
+        contactEmail: c.contact_email,
+        isActive: c.is_active,
         // Map credentials back from the profiles table
         // Using explicit Map typing ensures these properties are accessible
-        admin_mobile: adminProfile?.mobile_number || '', 
-        admin_password: '' // Do not fetch password
+        adminMobile: adminProfile?.mobile_number || '', 
+        adminPassword: '' // Do not fetch password
       };
     });
   },
@@ -46,12 +46,12 @@ export const CompanyService = {
       const { data: companyData, error: companyError } = await supabase.from('pharma_companies').upsert({
         ...(c.id && c.id.length > 20 ? { id: c.id } : {}),
         name: c.name,
-        company_code: c.company_code,
+        company_code: c.companyCode,
         address: c.address,
-        contact_number: c.contact_number,
-        finance_email: c.finance_email,
-        contact_email: c.contact_email,
-        is_active: c.is_active
+        contact_number: c.contactNumber,
+        finance_email: c.financeEmail,
+        contact_email: c.contactEmail,
+        is_active: c.isActive
       }).select().single();
 
       if (companyError) {
@@ -63,7 +63,7 @@ export const CompanyService = {
         // 2. Save credentials to profiles table using the SAME UUID as the company
         // This ensures the App login logic correctly identifies the companyId
         // CRITICAL FIX: New companies must have a password set
-        if (!c.id && !c.admin_password) {
+        if (!c.id && !c.adminPassword) {
           throw new Error(`Cannot create company ${c.name}: admin password is required`);
         }
         
@@ -71,11 +71,11 @@ export const CompanyService = {
           id: companyData.id,
           role: 'COMPANY',
           full_name: `${companyData.name} Administrator`,
-          mobile_number: c.admin_mobile.trim(),
+          mobile_number: c.adminMobile,
         };
 
-        if (c.admin_password) {
-          profileUpdate.password = c.admin_password.trim();
+        if (c.adminPassword) {
+          profileUpdate.password = c.adminPassword.trim();
         }
 
         console.log(`[CompanyService] Upserting company admin profile:`, { id: profileUpdate.id, role: profileUpdate.role, mobile: profileUpdate.mobile_number, hasPassword: !!profileUpdate.password });
@@ -94,14 +94,14 @@ export const CompanyService = {
         results.push({
           id: companyData.id,
           name: companyData.name,
-          company_code: companyData.company_code,
+          companyCode: companyData.company_code,
           address: companyData.address,
-          contact_number: companyData.contact_number,
-          finance_email: companyData.finance_email,
-          contact_email: companyData.contact_email,
-          is_active: companyData.is_active,
-          admin_mobile: c.admin_mobile,
-          admin_password: '' // Never return password
+          contactNumber: companyData.contact_number,
+          financeEmail: companyData.finance_email,
+          contactEmail: companyData.contact_email,
+          isActive: companyData.is_active,
+          adminMobile: c.adminMobile,
+          adminPassword: '' // Never return password
         });
       }
     }

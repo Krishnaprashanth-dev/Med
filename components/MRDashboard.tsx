@@ -41,9 +41,9 @@ const getScanStatus = (session: SessionType, windows?: Record<string, { start: s
 const QRScannerModal: React.FC<{
   onClose: () => void;
   onScan: (value: string) => void;
-  mr_id: string;
+  mrId: string;
   hospitals: Hospital[];
-}> = ({ onClose, onScan, mr_id, hospitals }) => {
+}> = ({ onClose, onScan, mrId, hospitals }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -141,8 +141,8 @@ const VisitingBadgeModal: React.FC<{
   hospital?: Hospital;
   mr: MedicalRep;
 }> = ({ onClose, pass, hospital, mr }) => {
-  const window = hospital?.entry_windows?.[pass.session];
-  const session_window = hospital?.session_windows?.[pass.session];
+  const window = hospital?.entryWindows?.[pass.session];
+  const sessionWindow = hospital?.sessionWindows?.[pass.session];
 
   return (
     <div className="fixed inset-0 z-[150] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
@@ -161,23 +161,23 @@ const VisitingBadgeModal: React.FC<{
         <div className="px-8 -mt-12 relative z-10">
            <div className="bg-white rounded-[2rem] shadow-xl p-6 border border-slate-100 text-center">
               <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-md overflow-hidden bg-gradient-to-br from-slate-50 to-slate-200">
-                {mr.slcpi_photo ? (
-                  <img src={mr.slcpi_photo} className="w-full h-full object-cover" />
+                {mr.slcpiPhoto ? (
+                  <img src={mr.slcpiPhoto} className="w-full h-full object-cover" />
                 ) : (
                   <UserCircle className="h-12 w-12 text-slate-300" />
                 )}
               </div>
-              <h4 className="text-xl font-black text-slate-800 tracking-tight">{mr.full_name}</h4>
-              <p className="text-indigo-600 font-black text-[10px] uppercase tracking-[0.2em] mb-4">{mr.company_name}</p>
+              <h4 className="text-xl font-black text-slate-800 tracking-tight">{mr.fullName}</h4>
+              <p className="text-indigo-600 font-black text-[10px] uppercase tracking-[0.2em] mb-4">{mr.companyName}</p>
               
               <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-4">
                  <div className="text-left">
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Mobile Number</p>
-                    <p className="text-xs font-bold text-slate-700 font-mono">{mr.mobile_number}</p>
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Login ID</p>
+                    <p className="text-xs font-bold text-slate-700 font-mono">{mr.loginId}</p>
                  </div>
                  <div className="text-right">
                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">SLCPI ID</p>
-                    <p className="text-xs font-bold text-slate-700 font-mono">{mr.slcpi_id}</p>
+                    <p className="text-xs font-bold text-slate-700 font-mono">{mr.slcpiId}</p>
                  </div>
               </div>
            </div>
@@ -206,7 +206,7 @@ const VisitingBadgeModal: React.FC<{
               <p className="text-white font-black text-xs uppercase tracking-[0.2em]">Live Entry Permit</p>
            </div>
            
-           <p className="text-center text-[8px] font-bold text-slate-400 uppercase tracking-widest">Auth ID: {pass.id.slice(0,12).toUpperCase()} • Node: {pass.hospital_id}</p>
+           <p className="text-center text-[8px] font-bold text-slate-400 uppercase tracking-widest">Auth ID: {pass.id.slice(0,12).toUpperCase()} • Node: {pass.hospitalId}</p>
 
            <button 
              onClick={onClose}
@@ -265,14 +265,14 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
 
   const refreshData = async () => {
     const h = await storageService.getHospitals();
-    const apprvs = await storageService.getApprovals({ mr_id: user.id });
-    const a = await storageService.getApplications({ mr_id: user.id });
-    const p = await storageService.getPasses({ mr_id: user.id });
+    const apprvs = await storageService.getApprovals({ mrId: user.id });
+    const a = await storageService.getApplications({ mrId: user.id });
+    const p = await storageService.getPasses({ mrId: user.id });
     setHospitals(h); setApprovals(apprvs); setApps(a); setPasses(p);
     
     // Rule-based Priority Insight
-    const missedCount = p.filter(pass => pass.entry_status === 'expired').length;
-    const entryCount = p.filter(pass => pass.entry_status === 'entered').length;
+    const missedCount = p.filter(pass => pass.entryStatus === 'expired').length;
+    const entryCount = p.filter(pass => pass.entryStatus === 'entered').length;
     let insight = "Your profile is synchronized with the network. Apply daily to build priority.";
     if (missedCount > 0) {
       insight = `You have ${missedCount} missed entries. This reduces your lottery priority score. Maintain perfect attendance to recover.`;
@@ -286,8 +286,8 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
     setIsStrategyLoading(true);
     // Rule-based Strategy
     setTimeout(() => {
-      const visitCount = passes.filter(p => p.entry_status === 'entered').length;
-      const missedCount = passes.filter(p => p.entry_status === 'expired').length;
+      const visitCount = passes.filter(p => p.entryStatus === 'entered').length;
+      const missedCount = passes.filter(p => p.entryStatus === 'expired').length;
       
       let strategy = "Rule-Based Logic Active:\n\n";
       strategy += "1. Perfect Attendance: Every missed visit is a -10 point penalty. Always scan at the gate.\n";
@@ -322,9 +322,9 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
         return;
       }
 
-      const hospital_id_from_qr = qrValue.replace('MEDPASS-GATE-', '');
-      const myPassesToday = latestPasses.filter(p => p.mr_id === user.id && p.pass_date === today && p.entry_status === 'not_entered');
-      const myEligiblePasses = myPassesToday.filter(p => p.hospital_id === hospital_id_from_qr);
+      const hospitalIdFromQR = qrValue.replace('MEDPASS-GATE-', '');
+      const myPassesToday = latestPasses.filter(p => p.mrId === user.id && p.passDate === today && p.entryStatus === 'not_entered');
+      const myEligiblePasses = myPassesToday.filter(p => p.hospitalId === hospitalIdFromQR);
 
       if (myEligiblePasses.length === 0) {
         const otherPasses = myPassesToday.length > 0;
@@ -338,11 +338,11 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
         return;
       }
 
-      const currentHospital = hospitals.find(h => h.id === hospital_id_from_qr);
-      const activePass = myEligiblePasses.find(p => getScanStatus(p.session, currentHospital?.entry_windows).open);
+      const currentHospital = hospitals.find(h => h.id === hospitalIdFromQR);
+      const activePass = myEligiblePasses.find(p => getScanStatus(p.session, currentHospital?.entryWindows).open);
 
       if (!activePass) {
-        const status = getScanStatus(myEligiblePasses[0].session, currentHospital?.entry_windows);
+        const status = getScanStatus(myEligiblePasses[0].session, currentHospital?.entryWindows);
         setScanResult({ status: 'error', message: `Scanning window closed: ${status.message}` });
         showFeedback(`Scan Failed: ${status.message}`, "error");
         return;
@@ -350,12 +350,12 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
 
       console.log("✅ Pass validated, proceeding with entry...", activePass);
 
-      const updatedPass = { ...activePass, entry_status: 'entered' as const };
+      const updatedPass = { ...activePass, entryStatus: 'entered' as const };
       const log = { 
         id: Math.random().toString(36).substr(2, 9), 
-        pass_id: activePass.id, 
-        entry_time: new Date().toISOString(), 
-        verified_by: 'Self-Gate-Scanner-v3.5' 
+        issuedPassId: activePass.id, 
+        entryTime: new Date().toISOString(), 
+        verifiedBy: 'Self-Gate-Scanner-v3.5' 
       };
       
       // Update UI immediately for instant feedback
@@ -395,13 +395,13 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
     setLoading(true);
     const newApproval: MRHospitalApproval = {
       id: Math.random().toString(36).substr(2, 9),
-      mr_id: user.id,
-      hospital_id: hospitalId,
+      mrId: user.id,
+      hospitalId: hospitalId,
       status: 'pending',
-      updated_at: new Date().toISOString()
+      updatedAt: new Date().toISOString()
     };
     
-    const currentApprovals = await storageService.getApprovals({ mr_id: user.id, hospital_id: hospital_id });
+    const currentApprovals = await storageService.getApprovals({ mrId: user.id, hospitalId });
     if (currentApprovals.length > 0 && currentApprovals[0].status === 'pending') {
       showFeedback("Access request is already pending.", "error");
       setLoading(false);
@@ -415,24 +415,24 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
   };
 
   const isSessionWindowOpen = (h: Hospital, session: SessionType) => {
-    const window = h.session_windows?.[session];
+    const window = h.sessionWindows?.[session];
     if (!window) return false;
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     return time >= window.start && time <= window.end;
   };
 
-  const getSessionCooldownInfo = (hospital_id: string, session: SessionType) => {
+  const getSessionCooldownInfo = (hospitalId: string, session: SessionType) => {
     const today = new Date();
     const todayStr = today.toLocaleDateString('en-CA');
     
     const relevantPasses = passes
-      .filter(p => p.hospital_id === hospital_id && p.session === session && p.pass_date <= todayStr)
-      .sort((a, b) => b.pass_date.localeCompare(a.pass_date));
+      .filter(p => p.hospitalId === hospitalId && p.session === session && p.passDate <= todayStr)
+      .sort((a, b) => b.passDate.localeCompare(a.passDate));
 
     if (relevantPasses.length === 0) return null;
 
-    const lastPassDate = new Date(relevantPasses[0].pass_date);
+    const lastPassDate = new Date(relevantPasses[0].passDate);
     const nextEligibleDate = new Date(lastPassDate);
     nextEligibleDate.setDate(lastPassDate.getDate() + 4); 
 
@@ -441,7 +441,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
     if (todayStr < nextEligibleDateStr) {
       return {
         isActive: true,
-        lastPassDate: relevantPasses[0].pass_date,
+        lastPassDate: relevantPasses[0].passDate,
         nextEligibleDateStr: nextEligibleDateStr
       };
     }
@@ -449,19 +449,19 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
     return null;
   };
 
-  const getTodayApplication = (hospital_id: string, session: SessionType) => {
+  const getTodayApplication = (hospitalId: string, session: SessionType) => {
     const todayStr = new Date().toLocaleDateString('en-CA');
-    return apps.find(a => a.hospital_id === hospital_id && a.session === session && a.application_date === todayStr && a.status === 'applied');
+    return apps.find(a => a.hospitalId === hospitalId && a.session === session && a.applicationDate === todayStr && a.status === 'applied');
   };
 
-  const handleApply = async (hospital_id: string, session: SessionType) => {
-    const cooldown = getSessionCooldownInfo(hospital_id, session);
+  const handleApply = async (hospitalId: string, session: SessionType) => {
+    const cooldown = getSessionCooldownInfo(hospitalId, session);
     if (cooldown?.isActive) {
       showFeedback(`Cooldown Active: System cooling down after recent visit. Next application window: ${cooldown.nextEligibleDateStr}`, "error");
       return;
     }
 
-    if (getTodayApplication(hospital_id, session)) {
+    if (getTodayApplication(hospitalId, session)) {
       showFeedback("You have already applied for this lottery today.", "error");
       return;
     }
@@ -470,18 +470,18 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
     const todayStr = new Date().toLocaleDateString('en-CA');
     const newApp: PassApplication = {
       id: Math.random().toString(36).substr(2, 9), 
-      mr_id: user.id, 
-      hospital_id: hospital_id, 
+      mrId: user.id, 
+      hospitalId, 
       session,
-      application_date: todayStr, 
-      priority_score: 0, 
+      applicationDate: todayStr, 
+      priorityScore: 0, 
       status: 'applied', 
-      created_at: new Date().toISOString()
+      createdAt: new Date().toISOString()
     };
     
     await storageService.saveApplications([newApp]);
     
-    const hName = hospitals.find(h => h.id === hospital_id)?.name || 'Hospital';
+    const hName = hospitals.find(h => h.id === hospitalId)?.name || 'Hospital';
     
     setTimeout(() => { 
       refreshData(); 
@@ -492,17 +492,17 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
 
   const todayStr = new Date().toLocaleDateString('en-CA');
   const activePassesToday = passes
-    .filter(p => p.entry_status === 'not_entered' && p.pass_date === todayStr)
+    .filter(p => p.entryStatus === 'not_entered' && p.passDate === todayStr)
     .filter((p, index, self) => 
       index === self.findIndex((t) => (
-        t.hospital_id === p.hospital_id && t.session === p.session
+        t.hospitalId === p.hospitalId && t.session === p.session
       ))
     );
   const currentVisitsToday = passes
-    .filter(p => p.entry_status === 'entered' && p.pass_date === todayStr)
+    .filter(p => p.entryStatus === 'entered' && p.passDate === todayStr)
     .filter((p, index, self) => 
       index === self.findIndex((t) => (
-        t.hospital_id === p.hospital_id && t.session === p.session
+        t.hospitalId === p.hospitalId && t.session === p.session
       ))
     );
 
@@ -512,16 +512,16 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <div>
           <h2 className="text-3xl font-black text-slate-800 tracking-tighter leading-none">
-            Welcome, {user.full_name.split(' ')[0]}
+            Welcome, {user.fullName.split(' ')[0]}
           </h2>
           <div className="flex items-center gap-2 mt-2">
             <div className="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
               <Briefcase className="h-3 w-3" />
-              {user.company_name}
+              {user.companyName}
             </div>
             <div className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
               <ShieldCheck className="h-3 w-3" />
-              {user.mr_code}
+              {user.mrId}
             </div>
           </div>
         </div>
@@ -564,7 +564,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
         <VisitingBadgeModal 
           pass={showBadgePass} 
           mr={user} 
-          hospital={hospitals.find(h => h.id === showBadgePass.hospital_id)}
+          hospital={hospitals.find(h => h.id === showBadgePass.hospitalId)}
           onClose={() => setShowBadgePass(null)}
         />
       )}
@@ -671,13 +671,13 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                </div>
             </div>
             <div className="grid gap-6 sm:grid-cols-2">
-              {hospitals.filter(h => approvals.some(a => a.mr_id === user.id && a.hospital_id === h.id && a.status === 'approved')).map(h => (
+              {hospitals.filter(h => approvals.some(a => a.mrId === user.id && a.hospitalId === h.id && a.status === 'approved')).map(h => (
                 <div key={h.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-200/50 hover:shadow-xl hover:border-indigo-200 transition-all group hover:-translate-y-1 duration-500">
                   <p className="font-black text-slate-800 text-lg mb-6 group-hover:text-indigo-600 transition-colors leading-tight">{h.name}</p>
                   <div className="space-y-4">
-                    {h.supported_sessions.map(sess => {
+                    {h.supportedSessions.map(sess => {
                       const open = isSessionWindowOpen(h, sess);
-                      const window = h.session_windows?.[sess];
+                      const window = h.sessionWindows?.[sess];
                       const alreadyApplied = getTodayApplication(h.id, sess);
                       const cooldown = getSessionCooldownInfo(h.id, sess);
                       
@@ -719,7 +719,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                   </div>
                 </div>
               ))}
-              {hospitals.filter(h => approvals.some(a => a.mr_id === user.id && a.hospital_id === h.id && a.status === 'approved')).length === 0 && (
+              {hospitals.filter(h => approvals.some(a => a.mrId === user.id && a.hospitalId === h.id && a.status === 'approved')).length === 0 && (
                 <div className="col-span-full py-20 text-center bg-slate-50 rounded-[3rem] border border-dashed border-slate-200">
                   <div className="bg-white w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
                     <Building2 className="h-8 w-8 text-slate-200" />
@@ -750,8 +750,8 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                  </div>
 
                  {currentVisitsToday.map(v => {
-                    const hospital = hospitals.find(h => h.id === v.hospital_id);
-                    const session_window = hospital?.session_windows?.[v.session];
+                    const hospital = hospitals.find(h => h.id === v.hospitalId);
+                    const sessionWindow = hospital?.sessionWindows?.[v.session];
                     return (
                       <div key={v.id} className="bg-white/10 rounded-3xl p-6 border border-white/20 backdrop-blur-md mb-4 relative z-10">
                          <p className="text-sm font-black text-white mb-2 truncate leading-tight">{hospital?.name}</p>
@@ -759,7 +759,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                             <span className="bg-white/20 px-3 py-1 rounded-lg">{v.session}</span>
                             <span className="flex items-center gap-1.5">
                               <Timer className="h-3.5 w-3.5" />
-                              Exp {session_window?.end}
+                              Exp {sessionWindow?.end}
                             </span>
                          </div>
                          <button 
@@ -781,8 +781,8 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                   Daily Permits
                 </h3>
                 {activePassesToday.some(p => {
-                  const hosp = hospitals.find(h => h.id === p.hospital_id);
-                  return getScanStatus(p.session, hosp?.entry_windows).open;
+                  const hosp = hospitals.find(h => h.id === p.hospitalId);
+                  return getScanStatus(p.session, hosp?.entryWindows).open;
                 }) && (
                   <button onClick={() => setIsScanning(true)} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 shadow-xl active:scale-95 animate-pulse">
                     <Camera className="h-4 w-4" /> SCAN GATE
@@ -791,8 +791,8 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
               </div>
               <div className="space-y-4">
                 {activePassesToday.map(p => {
-                  const hosp = hospitals.find(h => h.id === p.hospital_id);
-                  const status = getScanStatus(p.session, hosp?.entry_windows);
+                  const hosp = hospitals.find(h => h.id === p.hospitalId);
+                  const status = getScanStatus(p.session, hosp?.entryWindows);
                   return (
                     <div key={p.id} className={`p-6 border-2 rounded-3xl transition-all duration-500 ${status.open ? 'bg-indigo-50 border-indigo-200 shadow-lg scale-[1.02]' : 'bg-slate-50 border-slate-100 opacity-60 grayscale'}`}>
                       <div className="flex justify-between items-center mb-4">
@@ -867,8 +867,8 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {hospitals.filter(h => h.is_active && h.name.toLowerCase().includes(searchTerm.toLowerCase())).map(h => {
-                const approval = approvals.find(a => a.mr_id === user.id && a.hospital_id === h.id);
+              {hospitals.filter(h => h.isActive && h.name.toLowerCase().includes(searchTerm.toLowerCase())).map(h => {
+                const approval = approvals.find(a => a.mrId === user.id && a.hospitalId === h.id);
                 
                 return (
                   <div key={h.id} className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-200/50 flex flex-col hover:shadow-2xl hover:border-indigo-300 transition-all duration-500 group relative overflow-hidden">
@@ -927,15 +927,15 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
             <div className="w-28 h-28 bg-white p-1 rounded-[2.5rem] shadow-2xl mb-6 relative group">
                <div className="absolute inset-0 bg-indigo-600 rounded-[2.5rem] scale-[1.02] -z-10 group-hover:scale-110 transition-transform duration-500"></div>
                <div className="w-full h-full rounded-[2.3rem] overflow-hidden bg-slate-100 flex items-center justify-center">
-                  {user.slcpi_photo ? (
-                    <img src={user.slcpi_photo} className="w-full h-full object-cover" />
+                  {user.slcpiPhoto ? (
+                    <img src={user.slcpiPhoto} className="w-full h-full object-cover" />
                   ) : (
                     <UserCircle className="h-16 w-16 text-indigo-200" />
                   )}
                </div>
             </div>
-            <h3 className="text-4xl font-black text-slate-800 tracking-tighter leading-none">{user.full_name}</h3>
-            <p className="text-indigo-600 font-black uppercase tracking-[0.3em] text-[10px] mt-3 bg-indigo-50 px-4 py-1.5 rounded-full">{user.company_name}</p>
+            <h3 className="text-4xl font-black text-slate-800 tracking-tighter leading-none">{user.fullName}</h3>
+            <p className="text-indigo-600 font-black uppercase tracking-[0.3em] text-[10px] mt-3 bg-indigo-50 px-4 py-1.5 rounded-full">{user.companyName}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 relative z-10">
@@ -946,8 +946,8 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                </div>
                <div className="space-y-4">
                   <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">MR Code</span>
-                    <span className="text-sm font-black text-slate-700 font-mono tracking-tighter">{user.mr_code}</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Login ID</span>
+                    <span className="text-sm font-black text-slate-700 font-mono tracking-tighter">{user.loginId}</span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
                     <span className="text-[10px] font-bold text-slate-400 uppercase">System CID</span>
@@ -964,7 +964,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                <div className="space-y-4">
                   <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Verified Mobile</span>
-                    <span className="text-sm font-black text-slate-800">{user.mobile_number || 'N/A'}</span>
+                    <span className="text-sm font-black text-slate-800">{user.mobileNumber || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Access Level</span>
@@ -978,7 +978,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
             <Zap className="absolute -right-10 -bottom-10 h-48 w-48 opacity-10 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-700" />
             <div className="relative z-10">
               <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">Primary Affiliation</p>
-              <h4 className="text-3xl font-black tracking-tighter">{user.company_name}</h4>
+              <h4 className="text-3xl font-black tracking-tighter">{user.companyName}</h4>
             </div>
             <div className="bg-white/10 px-6 py-3 rounded-2xl backdrop-blur-md border border-white/20 relative z-10 shadow-lg">
                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-100">Status: Operational</p>
@@ -987,7 +987,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
         </section>
       )}
 
-      {isScanning && <QRScannerModal onClose={() => setIsScanning(false)} onScan={handleScanDetected} mr_id={user.id} hospitals={hospitals} />}
+      {isScanning && <QRScannerModal onClose={() => setIsScanning(false)} onScan={handleScanDetected} mrId={user.id} hospitals={hospitals} />}
     </div>
   );
 };

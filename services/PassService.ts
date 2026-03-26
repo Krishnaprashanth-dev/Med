@@ -3,23 +3,23 @@ import { supabase } from '../supabaseClient';
 import { PassApplication, IssuedPass, EntryLog, SessionType } from '../types';
 
 export const PassService = {
-  getApplications: async (filters?: { hospital_id?: string; date?: string; mr_id?: string }): Promise<PassApplication[]> => {
+  getApplications: async (filters?: { hospitalId?: string; date?: string; mrId?: string }): Promise<PassApplication[]> => {
     let query = supabase.from('applications').select('*');
-    if (filters?.hospital_id) query = query.eq('hospital_id', filters.hospital_id);
+    if (filters?.hospitalId) query = query.eq('hospital_id', filters.hospitalId);
     if (filters?.date) query = query.eq('application_date', filters.date);
-    if (filters?.mr_id) query = query.eq('mr_id', filters.mr_id);
+    if (filters?.mrId) query = query.eq('mr_id', filters.mrId);
     
     const { data, error } = await query;
     if (error) throw error;
     return (data || []).map(a => ({
       id: a.id,
-      mr_id: a.mr_id,
-      hospital_id: a.hospital_id,
+      mrId: a.mr_id,
+      hospitalId: a.hospital_id,
       session: a.session,
-      application_date: a.application_date,
-      priority_score: a.priority_score,
+      applicationDate: a.application_date,
+      priorityScore: a.priority_score,
       status: a.status,
-      created_at: a.created_at
+      createdAt: a.created_at
     }));
   },
 
@@ -28,11 +28,11 @@ export const PassService = {
     const { error } = await supabase.from('applications').upsert(
       apps.map(a => ({
         ...(a.id && a.id.length > 20 ? { id: a.id } : {}),
-        mr_id: a.mr_id,
-        hospital_id: a.hospital_id,
+        mr_id: a.mrId,
+        hospital_id: a.hospitalId,
         session: a.session,
-        application_date: a.application_date,
-        priority_score: a.priority_score,
+        application_date: a.applicationDate,
+        priority_score: a.priorityScore,
         status: a.status
       }))
     );
@@ -42,15 +42,15 @@ export const PassService = {
     }
   },
 
-  getPasses: async (filters?: { hospital_id?: string; date?: string; mr_id?: string | string[]; status?: string; session?: SessionType }): Promise<IssuedPass[]> => {
+  getPasses: async (filters?: { hospitalId?: string; date?: string; mrId?: string | string[]; status?: string; session?: SessionType }): Promise<IssuedPass[]> => {
     let query = supabase.from('passes').select('*');
-    if (filters?.hospital_id) query = query.eq('hospital_id', filters.hospital_id);
+    if (filters?.hospitalId) query = query.eq('hospital_id', filters.hospitalId);
     if (filters?.date) query = query.eq('pass_date', filters.date);
-    if (filters?.mr_id) {
-      if (Array.isArray(filters.mr_id)) {
-        query = query.in('mr_id', filters.mr_id);
+    if (filters?.mrId) {
+      if (Array.isArray(filters.mrId)) {
+        query = query.in('mr_id', filters.mrId);
       } else {
-        query = query.eq('mr_id', filters.mr_id);
+        query = query.eq('mr_id', filters.mrId);
       }
     }
     if (filters?.status) query = query.eq('entry_status', filters.status);
@@ -60,13 +60,13 @@ export const PassService = {
     if (error) throw error;
     return (data || []).map(p => ({
       id: p.id,
-      mr_id: p.mr_id,
-      hospital_id: p.hospital_id,
+      mrId: p.mr_id,
+      hospitalId: p.hospital_id,
       session: p.session,
-      pass_date: p.pass_date,
-      time_slot: p.time_slot,
-      qr_code: p.qr_code,
-      entry_status: p.entry_status
+      passDate: p.pass_date,
+      timeSlot: p.time_slot,
+      qrCode: p.qr_code,
+      entryStatus: p.entry_status
     }));
   },
 
@@ -75,13 +75,13 @@ export const PassService = {
     const { error } = await supabase.from('passes').upsert(
       passes.map(p => ({
         ...(p.id && p.id.length > 20 ? { id: p.id } : {}),
-        mr_id: p.mr_id,
-        hospital_id: p.hospital_id,
+        mr_id: p.mrId,
+        hospital_id: p.hospitalId,
         session: p.session,
-        pass_date: p.pass_date,
-        time_slot: p.time_slot,
-        qr_code: p.qr_code,
-        entry_status: p.entry_status
+        pass_date: p.passDate,
+        time_slot: p.timeSlot,
+        qr_code: p.qrCode,
+        entry_status: p.entryStatus
       }))
     );
     if (error) {
@@ -95,9 +95,9 @@ export const PassService = {
     if (error) throw error;
     return (data || []).map(l => ({
       id: l.id,
-      pass_id: l.pass_id,
-      entry_time: l.entry_time,
-      verified_by: l.verified_by
+      issuedPassId: l.pass_id,
+      entryTime: l.entry_time,
+      verifiedBy: l.verified_by
     }));
   },
 
@@ -106,9 +106,9 @@ export const PassService = {
     const { error } = await supabase.from('entry_logs').upsert(
       logs.map(l => ({
         ...(l.id && l.id.length > 20 ? { id: l.id } : {}),
-        pass_id: l.pass_id,
-        entry_time: l.entry_time,
-        verified_by: l.verified_by
+        pass_id: l.issuedPassId,
+        entry_time: l.entryTime,
+        verified_by: l.verifiedBy
       }))
     );
     if (error) {

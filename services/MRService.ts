@@ -28,17 +28,18 @@ export const MRService = {
 
     return (data || []).map(m => ({
       id: m.id,
-      full_name: profileMap.get(m.id) || '',
-      company_name: (m.pharma_companies as any)?.name || '',
-      company_id: m.company_id,
-      mr_code: m.mr_code,
-      mobile_number: m.mobile_number,
-      identification_number: m.identification_number,
-      slcpi_id: m.slcpi_id,
-      slcpi_photo: m.slcpi_photo,
-      slcpi_expiry: m.slcpi_expiry,
+      fullName: profileMap.get(m.id) || '',
+      companyName: (m.pharma_companies as any)?.name || '',
+      companyId: m.company_id,
+      mrId: m.mr_code,
+      loginId: m.mobile_number, // This is the contact number in mrs table, but we should probably fetch from profiles
+      mobileNumber: m.mobile_number,
+      identificationNumber: m.identification_number,
+      slcpiId: m.slcpi_id,
+      slcpiPhoto: m.slcpi_photo,
+      slcpiExpiry: m.slcpi_expiry,
       status: m.status as any,
-      created_at: m.created_at
+      createdAt: m.created_at
     }));
   },
 
@@ -50,15 +51,17 @@ export const MRService = {
       
       // CRITICAL FIX: New profiles MUST have a password for authentication to work
       if (!mr.id && !mr.password) {
-        throw new Error(`Cannot create new profile for ${mr.full_name}: password is required`);
+        throw new Error(`Cannot create new profile for ${mr.fullName}: password is required`);
       }
 
       // 1. Save Profile (the auth record)
       const profileUpdate: any = {
         id: targetId,
-        full_name: mr.full_name,
+        full_name: mr.fullName,
         role: 'MR',
-        mobile_number: mr.mobile_number.trim(),
+        // CRITICAL: Use mobileNumber for the mobile_number column in profiles table
+        // because that's what the login page uses for authentication for MRs.
+        mobile_number: mr.mobileNumber.trim(),
       };
       
       // Only include password if it's provided (new MR or explicit change)
@@ -77,14 +80,14 @@ export const MRService = {
         // 2. Save MR Metadata using same targetId
         const { data: mrData, error: mrError } = await supabase.from('mrs').upsert({
           id: targetId,
-          mr_code: mr.mr_code,
-          mobile_number: mr.mobile_number,
-          identification_number: mr.identification_number,
-          slcpi_id: mr.slcpi_id,
-          slcpi_photo: mr.slcpi_photo,
-          slcpi_expiry: mr.slcpi_expiry,
+          mr_code: mr.mrId,
+          mobile_number: mr.mobileNumber,
+          identification_number: mr.identificationNumber,
+          slcpi_id: mr.slcpiId,
+          slcpi_photo: mr.slcpiPhoto,
+          slcpi_expiry: mr.slcpiExpiry,
           status: mr.status,
-          company_id: mr.company_id
+          company_id: mr.companyId
         }).select(`
           *,
           pharma_companies (name)
@@ -98,17 +101,18 @@ export const MRService = {
         if (mrData) {
           results.push({
             id: mrData.id,
-            full_name: profileData.full_name,
-            company_name: (mrData.pharma_companies as any)?.name || '',
-            company_id: mrData.company_id,
-            mr_code: mrData.mr_code,
-            mobile_number: mrData.mobile_number,
-            identification_number: mrData.identification_number,
-            slcpi_id: mrData.slcpi_id,
-            slcpi_photo: mrData.slcpi_photo,
-            slcpi_expiry: mrData.slcpi_expiry,
+            fullName: profileData.full_name,
+            companyName: (mrData.pharma_companies as any)?.name || '',
+            companyId: mrData.company_id,
+            mrId: mrData.mr_code,
+            loginId: profileData.mobile_number, // The login ID from profiles table
+            mobileNumber: mrData.mobile_number, // The contact number from mrs table
+            identificationNumber: mrData.identification_number,
+            slcpiId: mrData.slcpi_id,
+            slcpiPhoto: mrData.slcpi_photo,
+            slcpiExpiry: mrData.slcpi_expiry,
             status: mrData.status as any,
-            created_at: mrData.created_at
+            createdAt: mrData.created_at
           });
         }
       }

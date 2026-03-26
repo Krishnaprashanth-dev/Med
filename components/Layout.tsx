@@ -39,7 +39,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title }) => {
             </div>
 
             <div className="hidden md:flex flex-col items-end mr-2">
-              <span className="text-xs font-bold text-indigo-100">{user.full_name}</span>
+              <span className="text-xs font-bold text-indigo-100">{user.fullName}</span>
               <span className="text-[10px] text-indigo-300 font-medium">Session Active</span>
             </div>
             <button 

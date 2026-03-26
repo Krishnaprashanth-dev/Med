@@ -7,18 +7,18 @@ export const lotteryService = {
     let score = 0;
     const now = new Date();
     // Use pre-fetched passes for this specific MR
-    const mrPasses = allPasses.filter(p => p.mr_id === mrId);
+    const mrPasses = allPasses.filter(p => p.mrId === mrId);
     
     // Penalty for missed entries (expired passes)
-    const missed = mrPasses.filter(p => p.entry_status === 'expired');
+    const missed = mrPasses.filter(p => p.entryStatus === 'expired');
     score += missed.length * PRIORITY_WEIGHTS.MISSED_ENTRY;
 
     // Bonus for time since last successful entry
-    const entered = mrPasses.filter(p => p.entry_status === 'entered');
+    const entered = mrPasses.filter(p => p.entryStatus === 'entered');
     
     if (entered.length > 0) {
-      const sorted = [...entered].sort((a, b) => new Date(b.pass_date).getTime() - new Date(a.pass_date).getTime());
-      const last = new Date(sorted[0].pass_date);
+      const sorted = [...entered].sort((a, b) => new Date(b.passDate).getTime() - new Date(a.passDate).getTime());
+      const last = new Date(sorted[0].passDate);
       const diffDays = Math.floor((now.getTime() - last.getTime()) / (1000 * 3600 * 24));
       
       if (diffDays >= 14) score += PRIORITY_WEIGHTS.NO_PASS_14_DAYS;
@@ -63,7 +63,7 @@ export const lotteryService = {
     const threeDaysAgoStr = threeDaysAgo.toLocaleDateString('en-CA');
 
     // BATCH FETCH: Get all passes for all eligible MRs in one query
-    const mrIds = eligibleApps.map(a => a.mr_id);
+    const mrIds = eligibleApps.map(a => a.mrId);
     const allRelevantPasses = await storageService.getPasses({ 
       mrId: mrIds,
       hospitalId, 
@@ -72,26 +72,26 @@ export const lotteryService = {
 
     // For each applicant, check if they had a pass in the last 3 days for this hospital/session
     const filteredApps = eligibleApps.filter(app => {
-      const recentPasses = allRelevantPasses.filter(p => p.mr_id === app.mr_id);
-      const hasRecent = recentPasses.some(p => p.pass_date >= threeDaysAgoStr && p.pass_date < today);
+      const recentPasses = allRelevantPasses.filter(p => p.mrId === app.mrId);
+      const hasRecent = recentPasses.some(p => p.passDate >= threeDaysAgoStr && p.passDate < today);
       return !hasRecent;
     });
 
     if (filteredApps.length === 0) return { success: false, count: 0, message: "No eligible applications after cooldown check." };
 
     // BATCH FETCH: Get ALL passes for these MRs to calculate priority scores
-    const finalMrIds = filteredApps.map(a => a.mr_id);
+    const finalMrIds = filteredApps.map(a => a.mrId);
     const allPassesForPriority = await storageService.getPasses({ mrId: finalMrIds });
 
     const scored = filteredApps.map(a => ({ 
       ...a, 
-      priority_score: lotteryService.calculatePriority(a.mr_id, allPassesForPriority) 
+      priorityScore: lotteryService.calculatePriority(a.mrId, allPassesForPriority) 
     }));
     
-    scored.sort((a, b) => b.priority_score - a.priority_score);
+    scored.sort((a, b) => b.priorityScore - a.priorityScore);
 
-    const sessionLimit = hosp.pass_limits?.[session] || 0;
-    const companyLimit = hosp.company_pass_limit?.[session];
+    const sessionLimit = hosp.passLimits?.[session] || 0;
+    const companyLimit = hosp.companyPassLimit?.[session];
 
     let selected: typeof scored = [];
     let waitlisted: typeof scored = [];
@@ -106,8 +106,8 @@ export const lotteryService = {
       const applicantsByCompany = new Map<string, typeof scored>();
       
       for (const app of scored) {
-        const mr = mrMap.get(app.mr_id);
-        const companyId = mr?.company_id || 'UNASSIGNED';
+        const mr = mrMap.get(app.mrId);
+        const companyId = mr?.companyId || 'UNASSIGNED';
         if (!applicantsByCompany.has(companyId)) {
           applicantsByCompany.set(companyId, []);
         }
@@ -156,22 +156,22 @@ export const lotteryService = {
 
     const newPasses: IssuedPass[] = selected.map((s) => ({
       id: `PASS-${s.id}`, // Deterministic ID based on application ID
-      mr_id: s.mr_id,
-      hospital_id: s.hospital_id,
+      mrId: s.mrId,
+      hospitalId: s.hospitalId,
       session,
-      pass_date: today,
-      time_slot: "",
-      qr_code: `QR-${s.id}`,
-      entry_status: 'not_entered'
+      passDate: today,
+      timeSlot: "",
+      qrCode: `QR-${s.id}`,
+      entryStatus: 'not_entered'
     }));
 
     // Update only the applications that were part of this lottery
     const updatedApps = scored.map(s => {
       const isSel = selected.find(x => x.id === s.id);
-      if (isSel) return { ...s, status: 'selected' as const, priority_score: isSel.priority_score };
+      if (isSel) return { ...s, status: 'selected' as const, priorityScore: isSel.priorityScore };
       
       const isWait = waitlisted.find(x => x.id === s.id);
-      if (isWait) return { ...s, status: 'waitlisted' as const, priority_score: isWait.priority_score };
+      if (isWait) return { ...s, status: 'waitlisted' as const, priorityScore: isWait.priorityScore };
       
       return s;
     });
@@ -185,7 +185,7 @@ export const lotteryService = {
       success: true, 
       count: selected.length, 
       message: `Successfully issued ${selected.length} passes.`,
-      selectedMrIds: selected.map(s => s.mr_id)
+      selectedMrIds: selected.map(s => s.mrId)
     };
   }
 };
