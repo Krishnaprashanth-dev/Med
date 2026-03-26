@@ -144,9 +144,6 @@ export const lotteryService = {
 
         // If no allocations were made in this round, stop (no more applicants available)
         if (allocatedThisRound === 0) break;
-
-        // Reset company counters for next round
-        companyPassCount.clear();
       }
 
       // Remaining applicants become waitlist
