@@ -111,17 +111,17 @@ const App: React.FC = () => {
         const currentTimeNum = now.getHours() * 100 + now.getMinutes();
         
         // If Hospital Admin, only handle their hospital. If Super Admin, handle all.
-        const hospitalId = currentUser.role === 'ADMIN' ? currentUser.hospitalId : undefined;
+        const hospitalId = currentUser.role === 'ADMIN' ? currentUser.hospital_id : undefined;
         const hospitals = await storageService.getHospitals(hospitalId);
         
         // Handle Pass Expiry/Ending
         // Only fetch active passes that might need updating
         const activePasses = await storageService.getPasses({ 
-          hospitalId, 
+          hospital_id: hospitalId, 
           status: 'not_entered' // Only check those not entered for expiry
         });
         const enteredPasses = await storageService.getPasses({
-          hospitalId,
+          hospital_id: hospitalId,
           status: 'entered' // Only check those entered for ending
         });
 
@@ -130,55 +130,55 @@ const App: React.FC = () => {
         
         const updatedPasses = allRelevantPasses.map(p => {
           // Auto-expire/end old passes from previous days
-          if (p.passDate < today) {
+          if (p.pass_date < today) {
             hasPassChanges = true;
-            return { ...p, entryStatus: p.entryStatus === 'entered' ? 'ended' as const : 'expired' as const };
+            return { ...p, entry_status: p.entry_status === 'entered' ? 'ended' as const : 'expired' as const };
           }
 
           // Handle today's passes
-          if (p.passDate === today) {
-            const hosp = hospitals.find(h => h.id === p.hospitalId);
+          if (p.pass_date === today) {
+            const hosp = hospitals.find(h => h.id === p.hospital_id);
             if (!hosp) return p;
 
             const defaultTime = p.session === 'MORNING' ? '13:00' : '23:00';
-            const configuredTimes = hosp.expiryTimes?.[p.session] || { issued: defaultTime, active: defaultTime };
+            const configuredTimes = hosp.expiry_times?.[p.session] || { issued: defaultTime, active: defaultTime };
             
             const convertToNum = (t: string) => parseInt(t.replace(':', ''));
             const issuedExpiryNum = convertToNum(configuredTimes.issued);
             const activeEndNum = convertToNum(configuredTimes.active);
 
-            if (p.entryStatus === 'not_entered' && currentTimeNum >= issuedExpiryNum) {
+            if (p.entry_status === 'not_entered' && currentTimeNum >= issuedExpiryNum) {
               hasPassChanges = true;
-              return { ...p, entryStatus: 'expired' as const };
+              return { ...p, entry_status: 'expired' as const };
             }
             
-            if (p.entryStatus === 'entered' && currentTimeNum >= activeEndNum) {
+            if (p.entry_status === 'entered' && currentTimeNum >= activeEndNum) {
               hasPassChanges = true;
-              return { ...p, entryStatus: 'ended' as const };
+              return { ...p, entry_status: 'ended' as const };
             }
           }
           return p;
         });
 
         if (hasPassChanges) {
-          const changesOnly = updatedPasses.filter((p, i) => p.entryStatus !== allRelevantPasses[i].entryStatus);
+          const changesOnly = updatedPasses.filter((p, i) => p.entry_status !== allRelevantPasses[i].entry_status);
           await storageService.savePasses(changesOnly);
         }
 
         // Handle Automatic Lottery
         for (const hosp of hospitals) {
-          if (!hosp.isActive || !hosp.autoLotteryEnabled) continue;
+          if (!hosp.is_active || !hosp.auto_lottery_enabled) continue;
 
           const sessions: SessionType[] = ['MORNING', 'EVENING', 'FULL_DAY'];
           for (const sess of sessions) {
-            const isEnabled = hosp.autoLotteryEnabled?.[sess];
-            const triggerTime = hosp.autoLotteryTimes?.[sess];
+            const isEnabled = hosp.auto_lottery_enabled?.[sess];
+            const triggerTime = hosp.auto_lottery_times?.[sess];
             
             if (isEnabled && triggerTime && currentTimeStr >= triggerTime) {
               const logKey = `${hosp.id}-${today}-${sess}`;
               if (!autoRunLogs.current.has(logKey)) {
                 // Double check if lottery already run by fetching apps for this slot
-                const apps = await storageService.getApplications({ hospitalId: hosp.id, date: today });
+                const apps = await storageService.getApplications({ hospital_id: hosp.id, date: today });
                 const alreadyRun = apps.some(a => a.session === sess && (a.status === 'selected' || a.status === 'waitlisted'));
                 
                 if (!alreadyRun) {
@@ -225,7 +225,15 @@ const App: React.FC = () => {
         console.error(`[Login] API Error: ${response.status} ${response.statusText}`);
         const errorText = await response.text();
         console.error(`[Login] Error Body:`, errorText);
-        showFeedback(`Authentication failed (Server Error: ${response.status}).`, 'error');
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.debug) console.log("[Login Debug Info]", errorJson.debug);
+          showFeedback(errorJson.message || `Authentication failed (${response.status}).`, 'error');
+        } catch (e) {
+          showFeedback(`Authentication failed (Server Error: ${response.status}).`, 'error');
+        }
+        
         setIsLoggingIn(false);
         return;
       }
@@ -233,17 +241,18 @@ const App: React.FC = () => {
       const result = await response.json();
 
       if (!result.success) {
+        if (result.debug) console.log("[Login Debug Info]", result.debug);
         showFeedback(result.message || "Authentication failed.", 'error');
         setIsLoggingIn(false);
         return;
       }
 
       const u: AuthUser = result.user;
-      console.log("[Login] Success! User session created:", u.fullName);
+      console.log("[Login] Success! User session created:", u.full_name);
 
       storageService.setCurrentUser(u); setUser(u); setView('DASHBOARD');
-      storageService.log(u.id, 'LOGIN', `${u.role} Login: ${u.fullName}`);
-      showFeedback(`Welcome back, ${u.fullName}!`);
+      storageService.log(u.id, 'LOGIN', `${u.role} Login: ${u.full_name}`);
+      showFeedback(`Welcome back, ${u.full_name}!`);
     } catch (err) {
       console.error("Login Exception:", err);
       showFeedback("Authentication failed. Please check your connection.", 'error');
@@ -253,7 +262,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    if (user) storageService.log(user.id, 'LOGOUT', `User ${user.fullName} logged out`);
+    if (user) storageService.log(user.id, 'LOGOUT', `User ${user.full_name} logged out`);
     storageService.clearSession();
     setUser(null);
     setView('LOGIN');
@@ -345,7 +354,7 @@ const App: React.FC = () => {
       <Layout 
         user={user} 
         onLogout={handleLogout} 
-        title={user.role === 'SUPER_ADMIN' ? 'Root Authority Control' : user.role === 'MR' ? 'Representative Hub' : `${user.fullName} Management`}
+        title={user.role === 'SUPER_ADMIN' ? 'Root Authority Control' : user.role === 'MR' ? 'Representative Hub' : `${user.full_name} Management`}
       >
         {user.role === 'MR' && <MRDashboard user={user as any} />}
         {user.role === 'COMPANY_ADMIN' && <CompanyAdminDashboard user={user} />}

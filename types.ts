@@ -8,110 +8,109 @@ export type SessionType = 'MORNING' | 'EVENING' | 'FULL_DAY';
 
 export interface MedicalRep {
   id: string;
-  fullName: string;
+  full_name: string;
   email?: string;
-  companyName: string; 
-  companyId?: string; // ID of the pharma company
-  mrId: string; // The system-wide official MR ID
-  loginId: string; // Unique ID used for logging into the app
-  mobileNumber: string; // Contact number
+  company_name: string; 
+  company_id?: string; // ID of the pharma company
+  mr_code: string; // The system-wide official MR ID
+  mobile_number: string; // Used for both contact and login
   password?: string; 
-  identificationNumber: string; // National ID / NIC
-  slcpiId?: string;
-  slcpiPhoto?: string; // Base64 string of the ID card photo
-  slcpiExpiry?: string; // Expiry date of SLCPI ID
+  identification_number: string; // National ID / NIC
+  slcpi_id?: string;
+  slcpi_photo?: string; // Base64 string of the ID card photo
+  slcpi_expiry?: string; // Expiry date of SLCPI ID
   status: MRStatus;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface Hospital {
   id: string;
   name: string;
-  supportedSessions: SessionType[];
-  passLimits: Record<string, number>; 
-  companyPassLimit?: Record<string, number>; 
-  sessionWindows: Record<string, { start: string; end: string }>; 
-  entryWindows?: Record<string, { start: string; end: string }>; // For gate entry validation
-  expiryTimes?: Record<string, { issued: string; active: string }>; // NEW: Configurable session end times
-  isActive: boolean;
-  mobileNumber?: string;
+  supported_sessions: SessionType[];
+  pass_limits: Record<string, number>; 
+  company_pass_limit?: Record<string, number>; 
+  session_windows: Record<string, { start: string; end: string }>; 
+  entry_windows?: Record<string, { start: string; end: string }>; // For gate entry validation
+  expiry_times?: Record<string, { issued: string; active: string }>; // NEW: Configurable session end times
+  is_active: boolean;
+  mobile_number?: string;
   email?: string;
   address?: string;
-  autoLotteryEnabled?: Record<string, boolean>;
-  autoLotteryTimes?: Record<string, string>;
+  auto_lottery_enabled?: Record<string, boolean>;
+  auto_lottery_times?: Record<string, string>;
 }
 
 export interface HospitalUser {
   id: string;
-  hospitalId: string;
-  mobileNumber: string; 
+  hospital_id: string;
+  mobile_number: string; 
   password: string;     
   role: 'ADMIN' | 'SECURITY';
-  fullName: string;
+  full_name: string;
 }
 
 export interface MRHospitalApproval {
   id: string;
-  mrId: string;
-  hospitalId: string;
+  mr_id: string;
+  hospital_id: string;
   status: ApprovalStatus;
-  updatedAt: string;
+  updated_at: string;
 }
 
 export interface PassApplication {
   id: string;
-  mrId: string;
-  hospitalId: string;
+  mr_id: string;
+  hospital_id: string;
   session: SessionType;
-  applicationDate: string;
-  priorityScore: number;
+  application_date: string;
+  priority_score: number;
   status: ApplicationStatus;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface IssuedPass {
   id: string;
-  mrId: string;
-  hospitalId: string;
+  mr_id: string;
+  hospital_id: string;
   session: SessionType;
-  passDate: string;
-  timeSlot: string;
-  qrCode: string;
-  entryStatus: EntryStatus;
+  pass_date: string;
+  time_slot: string;
+  qr_code: string;
+  entry_status: EntryStatus;
 }
 
 export interface PharmaCompany {
   id: string;
   name: string;
-  contactEmail: string;
-  companyCode: string; 
-  adminMobile: string; 
-  adminPassword: string; 
-  isActive: boolean;
+  contact_email: string;
+  company_code: string; 
+  admin_mobile: string; 
+  admin_password: string; 
+  is_active: boolean;
   address?: string;
-  contactNumber?: string;
-  financeEmail?: string;
+  contact_number?: string;
+  finance_email?: string;
 }
 
 export interface Invoice {
   id: string;
-  companyId: string;
+  company_id: string;
   amount: number;
-  activeMRCount: number;
+  active_mr_count: number;
   status: 'paid' | 'unpaid';
   date: string;
 }
 
 export interface EntryLog {
   id: string;
-  issuedPassId: string;
-  entryTime: string;
-  verifiedBy: string;
+  pass_id: string;
+  entry_time: string;
+  verified_by: string;
 }
 
 export interface AuditLog {
   id: string;
-  userId: string;
+  user_id: string;
   action: string;
   details: string;
   timestamp: string;
@@ -120,10 +119,9 @@ export interface AuditLog {
 export interface AuthUser {
   id: string;
   role: UserRole;
-  fullName: string;
-  mobileNumber?: string;
-  loginId?: string;
-  hospitalId?: string; 
-  companyId?: string; 
-  companyName?: string; 
+  full_name: string;
+  mobile_number: string;
+  hospital_id?: string; 
+  company_id?: string; 
+  company_name?: string; 
 }

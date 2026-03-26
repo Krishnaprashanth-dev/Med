@@ -15,27 +15,27 @@ const SecurityView: React.FC = () => {
   // Generate a unique Gate QR code value for THIS specific hospital
   const gateQrValue = useMemo(() => {
     const user = storageService.getCurrentUser();
-    // Unique ID format enforced: MEDPASS-GATE-[hospitalId]
-    return user?.hospitalId ? `MEDPASS-GATE-${user.hospitalId}` : 'INVALID-GATE';
+    // Unique ID format enforced: MEDPASS-GATE-[hospital_id]
+    return user?.hospital_id ? `MEDPASS-GATE-${user.hospital_id}` : 'INVALID-GATE';
   }, []);
 
   useEffect(() => {
     // Fix: refresh made async and awaiting storage calls
     const refresh = async () => {
       const user = storageService.getCurrentUser();
-      if (user?.hospitalId) {
+      if (user?.hospital_id) {
         const allHospitals = await storageService.getHospitals();
-        const currentHosp = allHospitals.find(h => h.id === user.hospitalId);
+        const currentHosp = allHospitals.find(h => h.id === user.hospital_id);
         setHospital(currentHosp || null);
         
         const allLogs = await storageService.getLogs();
         const allPasses = await storageService.getPasses();
         setPasses(allPasses);
         // Strict Isolation: Only show entries for THIS hospital's gate
-        const myHospitalPassIds = allPasses.filter(p => p.hospitalId === user.hospitalId).map(p => p.id);
+        const myHospitalPassIds = allPasses.filter(p => p.hospital_id === user.hospital_id).map(p => p.id);
         const filteredLogs = allLogs
-          .filter(l => myHospitalPassIds.includes(l.issuedPassId))
-          .sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime());
+          .filter(l => myHospitalPassIds.includes(l.pass_id))
+          .sort((a, b) => new Date(b.entry_time).getTime() - new Date(a.entry_time).getTime());
           
         setLogs(filteredLogs);
         setMrs(await storageService.getMRs());
@@ -89,8 +89,8 @@ const SecurityView: React.FC = () => {
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
            {logs.map((log, index) => {
              // Fix: Using passes state instead of calling storageService.getPasses() inside map
-             const pass = passes.find(p => p.id === log.issuedPassId);
-             const mr = mrs.find(m => m.id === pass?.mrId);
+             const pass = passes.find(p => p.id === log.pass_id);
+             const mr = mrs.find(m => m.id === pass?.mr_id);
              return (
                <div key={log.id} className={`flex items-center justify-between p-5 rounded-[2rem] border transition-all ${index === 0 ? 'bg-indigo-50/50 border-indigo-100 ring-2 ring-indigo-500/10 shadow-sm' : 'bg-white border-slate-100'}`}>
                   <div className="flex items-center gap-4">
@@ -98,9 +98,9 @@ const SecurityView: React.FC = () => {
                         {index === 0 ? <CheckCircle className="h-6 w-6" /> : <User className="h-6 w-6" />}
                      </div>
                      <div>
-                        <p className="font-black text-slate-800 leading-tight">{mr?.fullName || 'Unknown Visitor'}</p>
+                        <p className="font-black text-slate-800 leading-tight">{mr?.full_name || 'Unknown Visitor'}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                           <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-tighter">{mr?.companyName || 'Pharma Rep'}</p>
+                           <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-tighter">{mr?.company_name || 'Pharma Rep'}</p>
                            <span className="text-slate-300">•</span>
                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{pass?.session} PASS</p>
                         </div>
@@ -109,7 +109,7 @@ const SecurityView: React.FC = () => {
                   <div className="text-right">
                     <div className="flex items-center justify-end gap-1.5 text-slate-800 font-black text-sm">
                        <Clock className="h-3 w-3 text-slate-300" />
-                       {new Date(log.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                       {new Date(log.entry_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
                </div>

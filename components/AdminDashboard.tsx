@@ -16,8 +16,8 @@ interface AdminDashboardProps {
   user: {
     id: string;
     role: string;
-    fullName: string;
-    hospitalId: string;
+    full_name: string;
+    hospital_id: string;
   };
 }
 
@@ -49,48 +49,48 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   const refreshData = useCallback(async () => {
     try {
       const allHospitals = await storageService.getHospitals();
-      const currentHosp = allHospitals.find(h => h.id === user.hospitalId);
+      const currentHosp = allHospitals.find(h => h.id === user.hospital_id);
       
       setHospitals(allHospitals);
       setMrs(await storageService.getMRs()); 
       setCompanies(await storageService.getCompanies());
       const allApps = await storageService.getApplications();
-      const myApps = allApps.filter(a => a.hospitalId === user.hospitalId);
+      const myApps = allApps.filter(a => a.hospital_id === user.hospital_id);
       setApps(allApps); 
-      const myPasses = (await storageService.getPasses()).filter(p => p.hospitalId === user.hospitalId);
+      const myPasses = (await storageService.getPasses()).filter(p => p.hospital_id === user.hospital_id);
       setPasses(await storageService.getPasses());
       setLogs(await storageService.getLogs());
       setApprovals(await storageService.getApprovals());
       
       const hospitalUsers = await storageService.getHospitalUsers();
-      const sec = hospitalUsers.find(u => u.hospitalId === user.hospitalId && u.role === 'SECURITY');
+      const sec = hospitalUsers.find(u => u.hospital_id === user.hospital_id && u.role === 'SECURITY');
       if (sec) setSecurityUser(sec);
       
       if (currentHosp && !editingHospital) {
         setEditingHospital({
           ...currentHosp,
-          autoLotteryEnabled: currentHosp.autoLotteryEnabled || {},
-          autoLotteryTimes: currentHosp.autoLotteryTimes || {},
-          passLimits: currentHosp.passLimits || {},
-          companyPassLimit: currentHosp.companyPassLimit || {},
-          sessionWindows: currentHosp.sessionWindows || {},
-          entryWindows: currentHosp.entryWindows || {},
-          expiryTimes: currentHosp.expiryTimes || {},
-          supportedSessions: currentHosp.supportedSessions || []
+          auto_lottery_enabled: currentHosp.auto_lottery_enabled || {},
+          auto_lottery_times: currentHosp.auto_lottery_times || {},
+          pass_limits: currentHosp.pass_limits || {},
+          company_pass_limit: currentHosp.company_pass_limit || {},
+          session_windows: currentHosp.session_windows || {},
+          entry_windows: currentHosp.entry_windows || {},
+          expiry_times: currentHosp.expiry_times || {},
+          supported_sessions: currentHosp.supported_sessions || []
         });
       }
 
       // Rule-based Briefing
       const successRate = myApps.length > 0 ? ((myPasses.length / myApps.length) * 100).toFixed(1) : 0;
       const today = new Date().toLocaleDateString('en-CA');
-      const todayApps = myApps.filter(a => a.applicationDate === today).length;
+      const todayApps = myApps.filter(a => a.application_date === today).length;
       
       setBrief(`Facility Report: Today has seen ${todayApps} applications with an overall success rate of ${successRate}%. System traffic is within optimal capacity limits.`);
       
     } catch (e) {
       console.error("Data refresh failed", e);
     }
-  }, [user.hospitalId, editingHospital]);
+  }, [user.hospital_id, editingHospital]);
 
   useEffect(() => { 
     refreshData(); 
@@ -99,7 +99,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   }, [refreshData]);
 
   const handleManualLottery = async (session: SessionType) => {
-    const result = await lotteryService.runLottery(user.hospitalId, session);
+    const result = await lotteryService.runLottery(user.hospital_id, session);
     setLotteryResult(result);
     if (result.success) {
       storageService.log(user.id, 'MANUAL_LOTTERY', `Session: ${session}, Result: ${result.message}`);
@@ -169,24 +169,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   const toggleSupportedSession = (sess: SessionType) => {
     setEditingHospital(prev => {
       if (!prev) return null;
-      const isSupported = prev.supportedSessions.includes(sess);
+      const isSupported = prev.supported_sessions.includes(sess);
       const newSupported = isSupported 
-        ? prev.supportedSessions.filter(s => s !== sess)
-        : [...prev.supportedSessions, sess];
+        ? prev.supported_sessions.filter(s => s !== sess)
+        : [...prev.supported_sessions, sess];
       
-      const newAutoEnabled = { ...(prev.autoLotteryEnabled || {}) };
+      const newAutoEnabled = { ...(prev.auto_lottery_enabled || {}) };
       if (isSupported) newAutoEnabled[sess] = false;
 
-      return { ...prev, supportedSessions: newSupported, autoLotteryEnabled: newAutoEnabled };
+      return { ...prev, supported_sessions: newSupported, auto_lottery_enabled: newAutoEnabled };
     });
   };
 
   const handleUpdateApproval = async (id: string, status: 'approved' | 'rejected') => {
     const allApprovals = await storageService.getApprovals();
     const target = allApprovals.find(a => a.id === id);
-    const updated = allApprovals.map(a => a.id === id ? { ...a, status, updatedAt: new Date().toISOString() } : a);
+    const updated = allApprovals.map(a => a.id === id ? { ...a, status, updated_at: new Date().toISOString() } : a);
     await storageService.saveApprovals(updated);
-    if (target) storageService.log(user.id, 'MR_APPROVAL_UPDATE', `MR ID: ${target.mrId}, Status: ${status}`);
+    if (target) storageService.log(user.id, 'MR_APPROVAL_UPDATE', `MR ID: ${target.mr_id}, Status: ${status}`);
     setApprovals(updated);
     showFeedback(`MR Access Request ${status === 'approved' ? 'Authorized' : 'Rejected'}.`);
   };
@@ -212,7 +212,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
     }
   };
 
-  const currentHospital = hospitals.find(h => h.id === user.hospitalId);
+  const currentHospital = hospitals.find(h => h.id === user.hospital_id);
 
   if (!currentHospital || !editingHospital) return (
     <div className="flex items-center justify-center p-20 text-slate-400 font-bold">
@@ -220,23 +220,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
     </div>
   );
 
-  const pendingApprovals = approvals.filter(a => a.hospitalId === user.hospitalId && a.status === 'pending');
+  const pendingApprovals = approvals.filter(a => a.hospital_id === user.hospital_id && a.status === 'pending');
   const approvedMRs = mrs.filter(mr => 
-    approvals.some(a => a.mrId === mr.id && a.hospitalId === user.hospitalId && a.status === 'approved')
+    approvals.some(a => a.mr_id === mr.id && a.hospital_id === user.hospital_id && a.status === 'approved')
   );
   const approvedCompanies = companies.filter(c => 
-    approvedMRs.some(mr => mr.companyName === c.name)
+    approvedMRs.some(mr => mr.company_name === c.name)
   );
 
   const filteredPasses = passes
-    .filter(p => p.hospitalId === user.hospitalId)
+    .filter(p => p.hospital_id === user.hospital_id)
     .filter(p => {
-      const mr = mrs.find(m => m.id === p.mrId);
-      const matchesSearch = mr?.fullName.toLowerCase().includes(historySearch.toLowerCase()) || p.id.toLowerCase().includes(historySearch.toLowerCase());
+      const mr = mrs.find(m => m.id === p.mr_id);
+      const matchesSearch = mr?.full_name.toLowerCase().includes(historySearch.toLowerCase()) || p.id.toLowerCase().includes(historySearch.toLowerCase());
       const matchesSession = historySessionFilter === 'ALL' || p.session === historySessionFilter;
       return matchesSearch && matchesSession;
     })
-    .sort((a, b) => new Date(b.passDate).getTime() - new Date(a.passDate).getTime());
+    .sort((a, b) => new Date(b.pass_date).getTime() - new Date(a.pass_date).getTime());
 
   return (
     <div className="space-y-6">
@@ -299,12 +299,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {(['MORNING', 'EVENING', 'FULL_DAY'] as SessionType[]).map((sess) => {
-                 if (!currentHospital.supportedSessions.includes(sess)) return null;
+                 if (!currentHospital.supported_sessions.includes(sess)) return null;
                  const today = new Date().toLocaleDateString('en-CA');
-                 const count = apps.filter(a => a.hospitalId === user.hospitalId && a.applicationDate === today && a.session === sess && a.status === 'applied').length;
-                 const selectedCount = apps.filter(a => a.hospitalId === user.hospitalId && a.applicationDate === today && a.session === sess && (a.status === 'selected' || a.status === 'waitlisted')).length;
-                 const isAuto = currentHospital.autoLotteryEnabled?.[sess];
-                 const autoTime = currentHospital.autoLotteryTimes?.[sess];
+                 const count = apps.filter(a => a.hospital_id === user.hospital_id && a.application_date === today && a.session === sess && a.status === 'applied').length;
+                 const selectedCount = apps.filter(a => a.hospital_id === user.hospital_id && a.application_date === today && a.session === sess && (a.status === 'selected' || a.status === 'waitlisted')).length;
+                 const isAuto = currentHospital.auto_lottery_enabled?.[sess];
+                 const autoTime = currentHospital.auto_lottery_times?.[sess];
 
                  return (
                    <div key={sess} className="p-6 bg-slate-50 border border-slate-100 rounded-3xl relative overflow-hidden group">
@@ -323,7 +323,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                          </div>
                          <div>
                            <h4 className="font-black text-slate-800 tracking-tight">{sess.replace('_', ' ')}</h4>
-                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Limit: {currentHospital.passLimits?.[sess] || 0}</p>
+                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Limit: {currentHospital.pass_limits?.[sess] || 0}</p>
                          </div>
                        </div>
                      </div>
@@ -388,46 +388,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                        <th className="px-6 py-4">Entry Log</th>
                     </tr>
                  </thead>
-                 <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-slate-50">
                     {filteredPasses.map(p => {
-                       const mr = mrs.find(m => m.id === p.mrId);
-                       const entryLog = logs.find(l => l.issuedPassId === p.id);
+                       const mr = mrs.find(m => m.id === p.mr_id);
+                       const entryLog = logs.find(l => l.pass_id === p.id);
                        return (
                           <tr key={p.id} className="hover:bg-indigo-50/20 transition-colors group">
                              <td className="px-6 py-4">
-                                <p className="text-xs font-black text-slate-800">{p.passDate}</p>
+                                <p className="text-xs font-black text-slate-800">{p.pass_date}</p>
                                 <div className="flex items-center gap-1 mt-1">
                                    <span className="text-[9px] font-bold text-slate-400 uppercase">{p.session}</span>
                                 </div>
                              </td>
                              <td className="px-6 py-4">
                                 <div>
-                                   <p className="text-sm font-black text-slate-800">{mr?.fullName || 'N/A'}</p>
+                                   <p className="text-sm font-black text-slate-800">{mr?.full_name || 'N/A'}</p>
                                    <p className="text-[10px] font-bold text-indigo-500 font-mono">{p.id.slice(0, 8).toUpperCase()}</p>
                                 </div>
                              </td>
                              <td className="px-6 py-4">
                                 <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                                   {mr?.slcpiId || 'NO ID'}
+                                   {mr?.slcpi_id || 'NO ID'}
                                 </span>
                              </td>
                              <td className="px-6 py-4">
-                                <p className="text-xs font-bold text-slate-600">{mr?.companyName}</p>
+                                <p className="text-xs font-bold text-slate-600">{mr?.company_name}</p>
                              </td>
                              <td className="px-6 py-4">
                                 <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
-                                   p.entryStatus === 'entered' ? 'bg-green-100 text-green-700' :
-                                   p.entryStatus === 'ended' ? 'bg-slate-200 text-slate-600' :
-                                   p.entryStatus === 'expired' ? 'bg-slate-100 text-slate-500' :
+                                   p.entry_status === 'entered' ? 'bg-green-100 text-green-700' :
+                                   p.entry_status === 'ended' ? 'bg-slate-200 text-slate-600' :
+                                   p.entry_status === 'expired' ? 'bg-slate-100 text-slate-500' :
                                    'bg-indigo-100 text-indigo-700'
                                 }`}>
-                                   {p.entryStatus === 'entered' ? 'VISITED' : p.entryStatus === 'ended' ? 'ENDED' : p.entryStatus.replace('_', ' ')}
+                                   {p.entry_status === 'entered' ? 'VISITED' : p.entry_status === 'ended' ? 'ENDED' : p.entry_status.replace('_', ' ')}
                                 </span>
                              </td>
                              <td className="px-6 py-4">
                                 {entryLog ? (
                                    <div className="flex flex-col">
-                                      <p className="text-[10px] font-black text-slate-800">{new Date(entryLog.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                      <p className="text-[10px] font-black text-slate-800">{new Date(entryLog.entry_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                    </div>
                                 ) : (
                                    <span className="text-[10px] font-bold text-slate-300">--</span>
@@ -436,7 +436,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                           </tr>
                        );
                     })}
-                 </tbody>
+                  </tbody>
               </table>
            </div>
         </section>
@@ -452,7 +452,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
           
           <div className="space-y-4">
             {pendingApprovals.map(a => {
-              const mr = mrs.find(m => m.id === a.mrId);
+              const mr = mrs.find(m => m.id === a.mr_id);
               return (
                 <div key={a.id} className="flex flex-col md:flex-row md:items-center justify-between p-6 bg-slate-50 border border-slate-100 rounded-3xl gap-4 hover:border-indigo-100 transition-colors">
                   <div className="flex items-center gap-4">
@@ -460,8 +460,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                       <User className="h-6 w-6 text-slate-400" />
                     </div>
                     <div>
-                      <p className="font-black text-slate-800">{mr?.fullName || 'Unknown MR'}</p>
-                      <p className="text-xs font-bold text-indigo-600 uppercase tracking-wide">{mr?.companyName}</p>
+                      <p className="font-black text-slate-800">{mr?.full_name || 'Unknown MR'}</p>
+                      <p className="text-xs font-bold text-indigo-600 uppercase tracking-wide">{mr?.company_name}</p>
                     </div>
                   </div>
                   
@@ -486,7 +486,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
           <h3 className="text-xl font-bold text-slate-800 mb-8">Authorized Pharma Partners</h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {approvedCompanies.map(c => {
-               const activeCompanyReps = approvedMRs.filter(mr => mr.companyName === c.name && mr.status === 'active');
+               const activeCompanyReps = approvedMRs.filter(mr => mr.company_name === c.name && mr.status === 'active');
                return (
                  <div key={c.id} className="bg-slate-50/50 border border-slate-100 rounded-3xl overflow-hidden hover:border-indigo-200 transition-all hover:shadow-md group">
                     <div 
@@ -495,7 +495,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                     >
                        <div>
                           <h4 className="font-black text-lg text-slate-800 group-hover:text-indigo-600 transition-colors">{c.name}</h4>
-                          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">{c.companyCode}</p>
+                          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">{c.company_code}</p>
                        </div>
                        <ChevronRight className={`h-5 w-5 text-slate-300 transition-transform ${selectedCompanyId === c.id ? 'rotate-90 text-indigo-500' : ''}`} />
                     </div>
@@ -507,7 +507,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                                   <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
                                      <User className="h-4 w-4 text-slate-400" />
                                   </div>
-                                  <p className="text-xs font-black text-slate-800 truncate">{mr.fullName}</p>
+                                  <p className="text-xs font-black text-slate-800 truncate">{mr.full_name}</p>
                                </div>
                             ))}
                          </div>
@@ -556,8 +556,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                               <User className="h-4 w-4 text-indigo-500" />
                             </div>
                             <div>
-                              <p className="text-xs font-black text-slate-800">{mr?.fullName || 'Unknown MR'}</p>
-                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{mr?.companyName}</p>
+                              <p className="text-xs font-black text-slate-800">{mr?.full_name || 'Unknown MR'}</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{mr?.company_name}</p>
                             </div>
                           </div>
                         );
@@ -603,7 +603,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <input type="email" value={editingHospital.email || ''} onChange={(e) => setEditingHospital({...editingHospital, email: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold" placeholder="Email" />
-                    <input type="tel" value={editingHospital.mobileNumber || ''} onChange={(e) => setEditingHospital({...editingHospital, mobileNumber: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold" placeholder="Mobile" />
+                    <input type="tel" value={editingHospital.mobile_number || ''} onChange={(e) => setEditingHospital({...editingHospital, mobile_number: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold" placeholder="Mobile" />
                   </div>
               </div>
             )}
@@ -611,8 +611,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
             {settingsTab === 'sessions' && (
               <div className="space-y-6">
                 {(['MORNING', 'EVENING', 'FULL_DAY'] as SessionType[]).map(sess => {
-                  const isSupported = editingHospital.supportedSessions.includes(sess);
-                  const isAuto = editingHospital.autoLotteryEnabled?.[sess] || false;
+                  const isSupported = editingHospital.supported_sessions.includes(sess);
+                  const isAuto = editingHospital.auto_lottery_enabled?.[sess] || false;
                   
                   return (
                     <div key={sess} className={`p-6 rounded-3xl border-2 transition-all ${isSupported ? 'bg-white border-indigo-100' : 'bg-slate-50 border-dashed opacity-60'}`}>
@@ -626,12 +626,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                              <div className="grid grid-cols-2 gap-4">
                                 <div>
                                    <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Pass Limit</label>
-                                   <input type="number" value={editingHospital.passLimits?.[sess] || 0} onChange={(e) => updateSessionSetting(sess, 'passLimits', parseInt(e.target.value) || 0)} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold" />
+                                   <input type="number" value={editingHospital.pass_limits?.[sess] || 0} onChange={(e) => updateSessionSetting(sess, 'pass_limits', parseInt(e.target.value) || 0)} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold" />
                                    <p className="text-[8px] text-slate-400 mt-1">Total passes per session</p>
                                 </div>
                                 <div>
                                    <label className="text-[10px] font-black text-indigo-600 uppercase mb-1 block">Company Pass Cap</label>
-                                   <input type="number" value={editingHospital.companyPassLimit?.[sess] || 0} onChange={(e) => updateSessionSetting(sess, 'companyPassLimit', parseInt(e.target.value) || 0)} className="w-full px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-xl font-bold text-indigo-700" />
+                                   <input type="number" value={editingHospital.company_pass_limit?.[sess] || 0} onChange={(e) => updateSessionSetting(sess, 'company_pass_limit', parseInt(e.target.value) || 0)} className="w-full px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-xl font-bold text-indigo-700" />
                                    <p className="text-[8px] text-indigo-600 mt-1">Max per company</p>
                                 </div>
                              </div>
@@ -639,8 +639,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                              <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">App Window</label>
                                 <div className="grid grid-cols-2 gap-2">
-                                   <input type="time" value={editingHospital.sessionWindows?.[sess]?.start || '08:00'} onChange={(e) => updateSessionSetting(sess, 'sessionWindows', { ...(editingHospital.sessionWindows?.[sess] || {start:'08:00', end:'10:00'}), start: e.target.value })} className="w-full px-2 py-2 bg-slate-50 border rounded-xl text-[10px] font-bold" />
-                                   <input type="time" value={editingHospital.sessionWindows?.[sess]?.end || '10:00'} onChange={(e) => updateSessionSetting(sess, 'sessionWindows', { ...(editingHospital.sessionWindows?.[sess] || {start:'08:00', end:'10:00'}), end: e.target.value })} className="w-full px-2 py-2 bg-slate-50 border rounded-xl text-[10px] font-bold" />
+                                   <input type="time" value={editingHospital.session_windows?.[sess]?.start || '08:00'} onChange={(e) => updateSessionSetting(sess, 'session_windows', { ...(editingHospital.session_windows?.[sess] || {start:'08:00', end:'10:00'}), start: e.target.value })} className="w-full px-2 py-2 bg-slate-50 border rounded-xl text-[10px] font-bold" />
+                                   <input type="time" value={editingHospital.session_windows?.[sess]?.end || '10:00'} onChange={(e) => updateSessionSetting(sess, 'session_windows', { ...(editingHospital.session_windows?.[sess] || {start:'08:00', end:'10:00'}), end: e.target.value })} className="w-full px-2 py-2 bg-slate-50 border rounded-xl text-[10px] font-bold" />
                                 </div>
                              </div>
 
@@ -651,11 +651,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                                 <div className="grid grid-cols-2 gap-4">
                                    <div className="flex items-center gap-2">
                                       <span className="text-[9px] font-bold text-slate-400">START</span>
-                                      <input type="time" value={editingHospital.entryWindows?.[sess]?.start || '08:00'} onChange={(e) => updateSessionSetting(sess, 'entryWindows', { ...(editingHospital.entryWindows?.[sess] || {start:'08:00', end:'10:00'}), start: e.target.value })} className="w-full px-3 py-2 bg-indigo-50/50 border border-indigo-100 rounded-xl text-xs font-bold" />
+                                      <input type="time" value={editingHospital.entry_windows?.[sess]?.start || '08:00'} onChange={(e) => updateSessionSetting(sess, 'entry_windows', { ...(editingHospital.entry_windows?.[sess] || {start:'08:00', end:'10:00'}), start: e.target.value })} className="w-full px-3 py-2 bg-indigo-50/50 border border-indigo-100 rounded-xl text-xs font-bold" />
                                    </div>
                                    <div className="flex items-center gap-2">
                                       <span className="text-[9px] font-bold text-slate-400">END</span>
-                                      <input type="time" value={editingHospital.entryWindows?.[sess]?.end || '10:00'} onChange={(e) => updateSessionSetting(sess, 'entryWindows', { ...(editingHospital.entryWindows?.[sess] || {start:'08:00', end:'10:00'}), end: e.target.value })} className="w-full px-3 py-2 bg-indigo-50/50 border border-indigo-100 rounded-xl text-xs font-bold" />
+                                      <input type="time" value={editingHospital.entry_windows?.[sess]?.end || '10:00'} onChange={(e) => updateSessionSetting(sess, 'entry_windows', { ...(editingHospital.entry_windows?.[sess] || {start:'08:00', end:'10:00'}), end: e.target.value })} className="w-full px-3 py-2 bg-indigo-50/50 border border-indigo-100 rounded-xl text-xs font-bold" />
                                    </div>
                                 </div>
                              </div>
@@ -668,12 +668,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                                 <div className="grid grid-cols-2 gap-4">
                                    <div>
                                       <label className="text-[8px] font-black text-slate-400 uppercase mb-1 block">Unused Pass Expiry</label>
-                                      <input type="time" value={editingHospital.expiryTimes?.[sess]?.issued || (sess === 'MORNING' ? '13:00' : '23:00')} onChange={(e) => updateSessionSetting(sess, 'expiryTimes', { ...(editingHospital.expiryTimes?.[sess] || {issued:'13:00', active:'13:00'}), issued: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs" />
+                                      <input type="time" value={editingHospital.expiry_times?.[sess]?.issued || (sess === 'MORNING' ? '13:00' : '23:00')} onChange={(e) => updateSessionSetting(sess, 'expiry_times', { ...(editingHospital.expiry_times?.[sess] || {issued:'13:00', active:'13:00'}), issued: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs" />
                                       <p className="text-[7px] text-slate-400 mt-1 uppercase font-bold">Turns to EXPIRED</p>
                                    </div>
                                    <div>
                                       <label className="text-[8px] font-black text-slate-400 uppercase mb-1 block">Active Visit End</label>
-                                      <input type="time" value={editingHospital.expiryTimes?.[sess]?.active || (sess === 'MORNING' ? '13:00' : '23:00')} onChange={(e) => updateSessionSetting(sess, 'expiryTimes', { ...(editingHospital.expiryTimes?.[sess] || {issued:'13:00', active:'13:00'}), active: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs" />
+                                      <input type="time" value={editingHospital.expiry_times?.[sess]?.active || (sess === 'MORNING' ? '13:00' : '23:00')} onChange={(e) => updateSessionSetting(sess, 'expiry_times', { ...(editingHospital.expiry_times?.[sess] || {issued:'13:00', active:'13:00'}), active: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs" />
                                       <p className="text-[7px] text-slate-400 mt-1 uppercase font-bold">Turns to ENDED</p>
                                    </div>
                                 </div>
@@ -682,8 +682,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                              <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
                                 <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-indigo-600" /><span className="text-xs font-bold">Auto-Spin Lottery</span></div>
                                 <div className="flex items-center gap-3">
-                                   {isAuto && <input type="time" value={editingHospital.autoLotteryTimes?.[sess] || '18:00'} onChange={(e) => updateSessionSetting(sess, 'autoLotteryTimes', e.target.value)} className="bg-indigo-50 border-none text-xs font-black text-indigo-800 rounded-lg p-1 w-16" />}
-                                   <button type="button" onClick={() => updateSessionSetting(sess, 'autoLotteryEnabled', !isAuto)} className={`px-4 py-2 rounded-xl text-[10px] font-black ${isAuto ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'}`}>{isAuto ? 'AUTO ON' : 'AUTO OFF'}</button>
+                                   {isAuto && <input type="time" value={editingHospital.auto_lottery_times?.[sess] || '18:00'} onChange={(e) => updateSessionSetting(sess, 'auto_lottery_times', e.target.value)} className="bg-indigo-50 border-none text-xs font-black text-indigo-800 rounded-lg p-1 w-16" />}
+                                   <button type="button" onClick={() => updateSessionSetting(sess, 'auto_lottery_enabled', !isAuto)} className={`px-4 py-2 rounded-xl text-[10px] font-black ${isAuto ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'}`}>{isAuto ? 'AUTO ON' : 'AUTO OFF'}</button>
                                 </div>
                              </div>
                           </div>
@@ -718,7 +718,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                     <div className="space-y-4">
                       <div className="p-3 bg-white rounded-xl border border-slate-200 mb-2">
                         <p className="text-[10px] font-black text-slate-400 uppercase">Current Security Officer</p>
-                        <p className="text-sm font-bold text-slate-700">{securityUser?.fullName || 'Not assigned'}</p>
+                        <p className="text-sm font-bold text-slate-700">{securityUser?.full_name || 'Not assigned'}</p>
                       </div>
                       <input type="password" value={securityPasswordData.new} onChange={e => setSecurityPasswordData({...securityPasswordData, new: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold" placeholder="New Security Password" />
                       <input type="password" value={securityPasswordData.confirm} onChange={e => setSecurityPasswordData({...securityPasswordData, confirm: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold" placeholder="Confirm Security Password" />
@@ -750,11 +750,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto border-4 border-white shadow-sm">
                  <User className="h-10 w-10 text-indigo-600" />
                </div>
-               <h4 className="text-2xl font-black text-slate-800">{selectedMR.fullName}</h4>
-               <p className="text-indigo-600 font-bold uppercase text-sm">{selectedMR.companyName}</p>
+               <h4 className="text-2xl font-black text-slate-800">{selectedMR.full_name}</h4>
+               <p className="text-indigo-600 font-bold uppercase text-sm">{selectedMR.company_name}</p>
                <div className="grid grid-cols-2 gap-4 text-left">
-                  <div className="p-3 bg-slate-50 rounded-xl border"><p className="text-[10px] font-black text-slate-400 uppercase">Official ID</p><p className="font-bold text-slate-700">{selectedMR.mrId}</p></div>
-                  <div className="p-3 bg-slate-50 rounded-xl border"><p className="text-[10px] font-black text-slate-400 uppercase">Mobile</p><p className="font-bold text-slate-700">{selectedMR.mobileNumber}</p></div>
+                  <div className="p-3 bg-slate-50 rounded-xl border"><p className="text-[10px] font-black text-slate-400 uppercase">Official ID</p><p className="font-bold text-slate-700">{selectedMR.mr_code}</p></div>
+                  <div className="p-3 bg-slate-50 rounded-xl border"><p className="text-[10px] font-black text-slate-400 uppercase">Mobile</p><p className="font-bold text-slate-700">{selectedMR.mobile_number}</p></div>
                </div>
                <button onClick={() => setSelectedMR(null)} className="w-full bg-slate-800 text-white font-black py-4 rounded-2xl">CLOSE PROFILE</button>
             </div>

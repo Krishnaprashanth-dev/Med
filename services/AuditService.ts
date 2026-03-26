@@ -17,16 +17,16 @@ export const AuditService = {
     }
   },
 
-  getAuditLogs: async (filters?: { userId?: string; action?: string }): Promise<AuditLog[]> => {
+  getAuditLogs: async (filters?: { user_id?: string; action?: string }): Promise<AuditLog[]> => {
     let query = supabase.from('audit_logs').select('*').order('timestamp', { ascending: false });
-    if (filters?.userId) query = query.eq('user_id', filters.userId);
+    if (filters?.user_id) query = query.eq('user_id', filters.user_id);
     if (filters?.action) query = query.eq('action', filters.action);
 
     const { data, error } = await query;
     if (error) throw error;
     return (data || []).map(l => ({
       id: l.id,
-      userId: l.user_id,
+      user_id: l.user_id,
       action: l.action,
       details: l.details,
       timestamp: l.timestamp

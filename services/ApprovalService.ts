@@ -3,19 +3,19 @@ import { supabase } from '../supabaseClient';
 import { MRHospitalApproval } from '../types';
 
 export const ApprovalService = {
-  getApprovals: async (filters?: { mrId?: string; hospitalId?: string }): Promise<MRHospitalApproval[]> => {
+  getApprovals: async (filters?: { mr_id?: string; hospital_id?: string }): Promise<MRHospitalApproval[]> => {
     let query = supabase.from('approvals').select('*');
-    if (filters?.mrId) query = query.eq('mr_id', filters.mrId);
-    if (filters?.hospitalId) query = query.eq('hospital_id', filters.hospitalId);
+    if (filters?.mr_id) query = query.eq('mr_id', filters.mr_id);
+    if (filters?.hospital_id) query = query.eq('hospital_id', filters.hospital_id);
     
     const { data, error } = await query;
     if (error) throw error;
     return (data || []).map(a => ({
       id: a.id,
-      mrId: a.mr_id,
-      hospitalId: a.hospital_id,
+      mr_id: a.mr_id,
+      hospital_id: a.hospital_id,
       status: a.status,
-      updatedAt: a.updated_at
+      updated_at: a.updated_at
     }));
   },
 
@@ -24,10 +24,10 @@ export const ApprovalService = {
     const { error } = await supabase.from('approvals').upsert(
       approvals.map(a => ({
         ...(a.id && a.id.length > 20 ? { id: a.id } : {}),
-        mr_id: a.mrId,
-        hospital_id: a.hospitalId,
+        mr_id: a.mr_id,
+        hospital_id: a.hospital_id,
         status: a.status,
-        updated_at: a.updatedAt
+        updated_at: a.updated_at
       }))
     );
     if (error) {

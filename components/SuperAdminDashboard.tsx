@@ -32,13 +32,13 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
   // Hospital Modal States
   const [isHospitalModalOpen, setIsHospitalModalOpen] = useState(false);
   const [editingHospital, setEditingHospital] = useState<Partial<Hospital> | null>(null);
-  const [adminData, setAdminData] = useState({ fullName: '', mobileNumber: '', password: '', confirmPassword: '' });
-  const [securityData, setSecurityData] = useState({ fullName: '', mobileNumber: '', password: '', confirmPassword: '' });
+  const [adminData, setAdminData] = useState({ full_name: '', mobile_number: '', password: '', confirm_password: '' });
+  const [securityData, setSecurityData] = useState({ full_name: '', mobile_number: '', password: '', confirm_password: '' });
   const [showPasswords, setShowPasswords] = useState(false);
 
   // Company Modal States
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
-  const [editingCompany, setEditingCompany] = useState<Partial<PharmaCompany> & { adminConfirmPassword?: string } | null>(null);
+  const [editingCompany, setEditingCompany] = useState<Partial<PharmaCompany> & { admin_confirm_password?: string } | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [selectedMR, setSelectedMR] = useState<MedicalRep | null>(null);
 
@@ -69,12 +69,12 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     
     // 1. Check for hospitals without sessions
     currentHospitals.forEach(h => {
-      if (!h.supportedSessions || h.supportedSessions.length === 0) {
+      if (!h.supported_sessions || h.supported_sessions.length === 0) {
         issues.push({ type: 'error', message: `Hospital Configuration Error: ${h.name}`, details: 'No supported sessions configured. MRs cannot apply for passes.' });
       }
       
-      const passLimits = h.passLimits || {};
-      const totalPassLimit = Object.values(passLimits).reduce((a: number, b: any) => a + (Number(b) || 0), 0) as number;
+      const pass_limits = h.pass_limits || {};
+      const totalPassLimit = Object.values(pass_limits).reduce((a: number, b: any) => a + (Number(b) || 0), 0) as number;
       if (totalPassLimit < 5) {
         issues.push({ type: 'warning', message: `Low Capacity Alert: ${h.name}`, details: `Total daily pass limit is only ${totalPassLimit}. This may cause high rejection rates.` });
       }
@@ -82,7 +82,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
 
     // 2. Check for companies without MRs or with many suspended MRs
     currentCompanies.forEach(c => {
-      const companyMRs = currentMrs.filter(m => m.companyName === c.name);
+      const companyMRs = currentMrs.filter(m => m.company_name === c.name);
       const activeMRCount = companyMRs.filter(m => m.status === 'active').length;
       const suspendedMRCount = companyMRs.filter(m => m.status === 'suspended').length;
 
@@ -96,14 +96,14 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     // 3. Check for expired SLCPI IDs
     const now = new Date();
     currentMrs.forEach(mr => {
-      if (mr.slcpiExpiry) {
-        const expiryDate = new Date(mr.slcpiExpiry);
+      if (mr.slcpi_expiry) {
+        const expiryDate = new Date(mr.slcpi_expiry);
         if (expiryDate < now) {
-          issues.push({ type: 'error', message: `Compliance Breach: ${mr.fullName}`, details: `SLCPI ID expired on ${expiryDate.toLocaleDateString()}. Gate entry should be restricted.` });
+          issues.push({ type: 'error', message: `Compliance Breach: ${mr.full_name}`, details: `SLCPI ID expired on ${expiryDate.toLocaleDateString()}. Gate entry should be restricted.` });
         } else {
           const daysToExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
           if (daysToExpiry <= 7) {
-            issues.push({ type: 'warning', message: `Upcoming Expiry: ${mr.fullName}`, details: `SLCPI ID expires in ${daysToExpiry} days (${expiryDate.toLocaleDateString()}).` });
+            issues.push({ type: 'warning', message: `Upcoming Expiry: ${mr.full_name}`, details: `SLCPI ID expires in ${daysToExpiry} days (${expiryDate.toLocaleDateString()}).` });
           }
         }
       }
@@ -111,7 +111,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
 
     // 4. Check for stale pass applications (applied but not processed for > 24h)
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const staleApps = currentApps.filter(a => a.status === 'applied' && new Date(a.createdAt) < twentyFourHoursAgo);
+    const staleApps = currentApps.filter(a => a.status === 'applied' && new Date(a.created_at) < twentyFourHoursAgo);
     if (staleApps.length > 0) {
       issues.push({ type: 'warning', message: 'Stale Applications Detected', details: `${staleApps.length} pass applications have been pending for more than 24 hours.` });
     }
@@ -131,11 +131,11 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     
     // CRITICAL FIX: New hospitals must have admin credentials
     if (!editingHospital.id) {
-      if (!adminData.fullName || !adminData.mobileNumber || !adminData.password) {
+      if (!adminData.full_name || !adminData.mobile_number || !adminData.password) {
         showFeedback("New facility requires: Admin name, mobile number, and password", "error");
         return;
       }
-      if (!securityData.fullName || !securityData.mobileNumber || !securityData.password) {
+      if (!securityData.full_name || !securityData.mobile_number || !securityData.password) {
         showFeedback("New facility requires: Security name, mobile number, and password", "error");
         return;
       }
@@ -144,13 +144,13 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     // Omit ID if it's a new record to let Postgres generate a UUID
     // Password Validation
     if (adminData.password) {
-      if (adminData.password !== adminData.confirmPassword) {
+      if (adminData.password !== adminData.confirm_password) {
         showFeedback("Admin passwords do not match", "error");
         return;
       }
     }
     if (securityData.password) {
-      if (securityData.password !== securityData.confirmPassword) {
+      if (securityData.password !== securityData.confirm_password) {
         showFeedback("Security passwords do not match", "error");
         return;
       }
@@ -161,16 +161,16 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
       name: editingHospital.name || '',
       address: editingHospital.address || '',
       email: editingHospital.email || '',
-      mobileNumber: editingHospital.mobileNumber || '',
-      isActive: editingHospital.isActive ?? true,
-      supportedSessions: editingHospital.supportedSessions || ['MORNING', 'EVENING', 'FULL_DAY'],
-      passLimits: editingHospital.passLimits || { 'MORNING': 10, 'EVENING': 10, 'FULL_DAY': 5 },
-      sessionWindows: editingHospital.sessionWindows || { 
+      mobile_number: editingHospital.mobile_number || '',
+      is_active: editingHospital.is_active ?? true,
+      supported_sessions: editingHospital.supported_sessions || ['MORNING', 'EVENING', 'FULL_DAY'],
+      pass_limits: editingHospital.pass_limits || { 'MORNING': 10, 'EVENING': 10, 'FULL_DAY': 5 },
+      session_windows: editingHospital.session_windows || { 
         'MORNING': { start: '08:00', end: '10:00' },
         'EVENING': { start: '16:00', end: '18:00' },
         'FULL_DAY': { start: '08:00', end: '18:00' }
       },
-      entryWindows: editingHospital.entryWindows || { 
+      entry_windows: editingHospital.entry_windows || { 
         'MORNING': { start: '08:00', end: '12:00' },
         'EVENING': { start: '16:00', end: '20:00' },
         'FULL_DAY': { start: '08:00', end: '20:00' }
@@ -182,27 +182,27 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     const savedHospital = savedHospitals?.[0];
     
     if (savedHospital) {
-      const hospitalId = savedHospital.id;
+      const hospital_id = savedHospital.id;
       // Save Hospital User Accounts
       const hospitalUsers = await storageService.getHospitalUsers();
       
-      const adminId = editingHospital.id ? (hospitalUsers.find(user => user.hospitalId === hospitalId && user.role === 'ADMIN')?.id) : undefined;
-      const securityId = editingHospital.id ? (hospitalUsers.find(user => user.hospitalId === hospitalId && user.role === 'SECURITY')?.id) : undefined;
+      const admin_id = editingHospital.id ? (hospitalUsers.find(user => user.hospital_id === hospital_id && user.role === 'ADMIN')?.id) : undefined;
+      const security_id = editingHospital.id ? (hospitalUsers.find(user => user.hospital_id === hospital_id && user.role === 'SECURITY')?.id) : undefined;
 
       const u: HospitalUser[] = [
-        { ...(adminId ? { id: adminId } : {}), hospitalId, role: 'ADMIN', fullName: adminData.fullName, mobileNumber: adminData.mobileNumber.trim(), password: editingHospital.id ? '' : adminData.password } as HospitalUser,
-        { ...(securityId ? { id: securityId } : {}), hospitalId, role: 'SECURITY', fullName: securityData.fullName, mobileNumber: securityData.mobileNumber.trim(), password: editingHospital.id ? '' : securityData.password } as HospitalUser
+        { ...(admin_id ? { id: admin_id } : {}), hospital_id: hospital_id, role: 'ADMIN', full_name: adminData.full_name, mobile_number: adminData.mobile_number.trim(), password: editingHospital.id ? '' : adminData.password } as HospitalUser,
+        { ...(security_id ? { id: security_id } : {}), hospital_id: hospital_id, role: 'SECURITY', full_name: securityData.full_name, mobile_number: securityData.mobile_number.trim(), password: editingHospital.id ? '' : securityData.password } as HospitalUser
       ];
       
       try {
         // CRITICAL FIX: Use updatePassword directly for existing admins to ensure hashing/persistence
-        if (editingHospital.id && adminId && adminData.password) {
-          await storageService.updatePassword(adminId, adminData.password);
-          console.log(`[SuperAdmin] Admin password updated via SessionService for: ${adminId}`);
+        if (editingHospital.id && admin_id && adminData.password) {
+          await storageService.updatePassword(admin_id, adminData.password);
+          console.log(`[SuperAdmin] Admin password updated via SessionService for: ${admin_id}`);
         }
         
         await storageService.saveHospitalUsers(u);
-        storageService.log('SUPER_ADMIN', 'HOSPITAL_SAVE', `Hospital: ${savedHospital.name} (ID: ${hospitalId})`);
+        storageService.log('SUPER_ADMIN', 'HOSPITAL_SAVE', `Hospital: ${savedHospital.name} (ID: ${hospital_id})`);
       } catch (err: any) {
         console.error("Hospital user save error:", err);
         showFeedback(err.message || "Failed to save hospital credentials", "error");
@@ -213,50 +213,50 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     refreshData();
     setIsHospitalModalOpen(false);
     setEditingHospital(null);
-    setAdminData({ fullName: '', mobileNumber: '', password: '', confirmPassword: '' });
-    setSecurityData({ fullName: '', mobileNumber: '', password: '', confirmPassword: '' });
+    setAdminData({ full_name: '', mobile_number: '', password: '', confirm_password: '' });
+    setSecurityData({ full_name: '', mobile_number: '', password: '', confirm_password: '' });
     showFeedback(editingHospital.id ? "Hospital infrastructure updated." : "New facility provisioned.");
   };
 
   const startEditHospital = async (h: Hospital) => {
     setEditingHospital(h);
-    const users = (await storageService.getHospitalUsers()).filter(u => u.hospitalId === h.id);
+    const users = (await storageService.getHospitalUsers()).filter(u => u.hospital_id === h.id);
     const admin = users.find(u => u.role === 'ADMIN');
     const security = users.find(u => u.role === 'SECURITY');
     
     setAdminData({ 
-      fullName: admin?.fullName || '', 
-      mobileNumber: admin?.mobileNumber || '', 
+      full_name: admin?.full_name || '', 
+      mobile_number: admin?.mobile_number || '', 
       password: '',
-      confirmPassword: ''
+      confirm_password: ''
     });
     setSecurityData({ 
-      fullName: security?.fullName || '', 
-      mobileNumber: security?.mobileNumber || '', 
+      full_name: security?.full_name || '', 
+      mobile_number: security?.mobile_number || '', 
       password: '',
-      confirmPassword: ''
+      confirm_password: ''
     });
     setIsHospitalModalOpen(true);
   };
 
   const handleSaveCompany = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingCompany?.name || !editingCompany?.companyCode) {
+    if (!editingCompany?.name || !editingCompany?.company_code) {
       showFeedback("Company name and code are required.", "error");
       return;
     }
     
     // CRITICAL FIX: New companies must have admin credentials
     if (!editingCompany.id) {
-      if (!editingCompany.adminMobile || !editingCompany.adminPassword) {
+      if (!editingCompany.admin_mobile || !editingCompany.admin_password) {
         showFeedback("New company requires: Admin mobile number and password", "error");
         return;
       }
     }
 
     // Password Validation
-    if (editingCompany.adminPassword) {
-      if (editingCompany.adminPassword !== editingCompany.adminConfirmPassword) {
+    if (editingCompany.admin_password) {
+      if (editingCompany.admin_password !== editingCompany.admin_confirm_password) {
         showFeedback("Company admin passwords do not match", "error");
         return;
       }
@@ -266,20 +266,20 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     const companyData: PharmaCompany = {
       ...(editingCompany.id ? { id: editingCompany.id } : {}),
       name: editingCompany.name || '',
-      companyCode: editingCompany.companyCode || '',
+      company_code: editingCompany.company_code || '',
       address: editingCompany.address || '',
-      contactNumber: editingCompany.contactNumber || '',
-      financeEmail: editingCompany.financeEmail || '',
-      adminMobile: (editingCompany.adminMobile || '').trim(),
-      adminPassword: editingCompany.id ? '' : editingCompany.adminPassword,
-      contactEmail: editingCompany.contactEmail || '',
-      isActive: editingCompany.isActive ?? true,
+      contact_number: editingCompany.contact_number || '',
+      finance_email: editingCompany.finance_email || '',
+      admin_mobile: (editingCompany.admin_mobile || '').trim(),
+      admin_password: editingCompany.id ? '' : editingCompany.admin_password,
+      contact_email: editingCompany.contact_email || '',
+      is_active: editingCompany.is_active ?? true,
     } as PharmaCompany;
 
     try {
       // CRITICAL FIX: Use updatePassword directly for existing company admins
-      if (editingCompany.id && editingCompany.adminPassword) {
-        await storageService.updatePassword(editingCompany.id, editingCompany.adminPassword);
+      if (editingCompany.id && editingCompany.admin_password) {
+        await storageService.updatePassword(editingCompany.id, editingCompany.admin_password);
         console.log(`[SuperAdmin] Company admin password updated via SessionService for: ${editingCompany.id}`);
       }
       
@@ -297,11 +297,11 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
 
   const toggleCompanyStatus = async (id: string) => {
     const currentCompanies = await storageService.getCompanies();
-    const updated = currentCompanies.map(c => c.id === id ? { ...c, isActive: !c.isActive } : c);
+    const updated = currentCompanies.map(c => c.id === id ? { ...c, is_active: !c.is_active } : c);
     await storageService.saveCompanies(updated);
     setCompanies(updated);
     const c = updated.find(x => x.id === id);
-    showFeedback(`Company ${c?.name} is now ${c?.isActive ? 'active' : 'deactivated'}`);
+    showFeedback(`Company ${c?.name} is now ${c?.is_active ? 'active' : 'deactivated'}`);
   };
 
   return (
@@ -318,9 +318,9 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
             <h3 className="text-xl font-bold">Facility Management</h3>
             <button 
               onClick={() => { 
-                setEditingHospital({ supportedSessions: ['MORNING', 'EVENING', 'FULL_DAY'], isActive: true }); 
-                setAdminData({ fullName: '', mobileNumber: '', password: '', confirmPassword: '' });
-                setSecurityData({ fullName: '', mobileNumber: '', password: '', confirmPassword: '' });
+                setEditingHospital({ supported_sessions: ['MORNING', 'EVENING', 'FULL_DAY'], is_active: true }); 
+                setAdminData({ full_name: '', mobile_number: '', password: '', confirm_password: '' });
+                setSecurityData({ full_name: '', mobile_number: '', password: '', confirm_password: '' });
                 setIsHospitalModalOpen(true); 
               }}
               className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 shadow-lg active:scale-95 transition-all"
@@ -331,7 +331,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {hospitals.map(h => (
               <div key={h.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 relative group hover:shadow-md transition-all">
-                <div className={`absolute top-4 right-4 w-2 h-2 rounded-full ${h.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <div className={`absolute top-4 right-4 w-2 h-2 rounded-full ${h.is_active ? 'bg-green-500' : 'bg-red-500'}`}></div>
                 <h4 className="font-black text-slate-800 text-lg mb-1">{h.name}</h4>
                 <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1 mb-4"><MapPin className="h-3 w-3" /> {h.address || 'Address not set'}</p>
                 <div className="space-y-2 mb-6">
@@ -340,7 +340,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                      Admin: {h.email ? 'Assigned' : 'Unassigned'}
                    </div>
                    <div className="flex items-center gap-2 text-[10px] font-black uppercase text-indigo-400 tracking-widest">
-                     {h.supportedSessions.join(' • ')}
+                     {h.supported_sessions.join(' • ')}
                    </div>
                 </div>
                 <button 
@@ -360,7 +360,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
           <div className="flex justify-between items-center mb-8">
             <h3 className="text-xl font-bold">Pharma Company Management</h3>
             <button 
-              onClick={() => { setEditingCompany({ isActive: true }); setIsCompanyModalOpen(true); }}
+              onClick={() => { setEditingCompany({ is_active: true }); setIsCompanyModalOpen(true); }}
               className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 shadow-lg active:scale-95 transition-all"
             >
               <Plus className="h-4 w-4" /> NEW PARTNER
@@ -370,7 +370,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1 space-y-3">
               {companies.map(c => {
-                const companyMRCount = mrs.filter(m => m.companyName === c.name).length;
+                const companyMRCount = mrs.filter(m => m.company_name === c.name).length;
                 return (
                   <button 
                     key={c.id}
@@ -379,9 +379,9 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                   >
                     <div className="flex justify-between items-center">
                       <h4 className="font-bold text-slate-800">{c.name}</h4>
-                      <div className={`w-2 h-2 rounded-full ${c.isActive ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-slate-300'}`}></div>
+                      <div className={`w-2 h-2 rounded-full ${c.is_active ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-slate-300'}`}></div>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">{c.companyCode} • {companyMRCount} MRs Registered</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">{c.company_code} • {companyMRCount} MRs Registered</p>
                   </button>
                 );
               })}
@@ -396,13 +396,13 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                         <h4 className="font-black text-xl text-slate-800">{companies.find(c => c.id === selectedCompanyId)?.name}</h4>
                         <div className="mt-2 space-y-1">
                           <p className="text-xs font-bold text-slate-500 flex items-center gap-2"><MapPin className="h-3 w-3" /> {companies.find(c => c.id === selectedCompanyId)?.address || 'Address not specified'}</p>
-                          <p className="text-xs font-bold text-indigo-600 flex items-center gap-2"><Mail className="h-3 w-3" /> {companies.find(c => c.id === selectedCompanyId)?.contactEmail}</p>
-                          <p className="text-xs font-bold text-slate-500 flex items-center gap-2"><CreditCard className="h-3 w-3" /> Finance: {companies.find(c => c.id === selectedCompanyId)?.financeEmail || 'Not set'}</p>
+                          <p className="text-xs font-bold text-indigo-600 flex items-center gap-2"><Mail className="h-3 w-3" /> {companies.find(c => c.id === selectedCompanyId)?.contact_email}</p>
+                          <p className="text-xs font-bold text-slate-500 flex items-center gap-2"><CreditCard className="h-3 w-3" /> Finance: {companies.find(c => c.id === selectedCompanyId)?.finance_email || 'Not set'}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                         <button onClick={() => toggleCompanyStatus(selectedCompanyId)} className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg border transition-colors ${companies.find(c => c.id === selectedCompanyId)?.isActive ? 'border-red-200 text-red-600 bg-red-50' : 'border-green-200 text-green-600 bg-green-50'}`}>
-                           {companies.find(c => c.id === selectedCompanyId)?.isActive ? 'Deactivate' : 'Activate'}
+                         <button onClick={() => toggleCompanyStatus(selectedCompanyId)} className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-lg border transition-colors ${companies.find(c => c.id === selectedCompanyId)?.is_active ? 'border-red-200 text-red-600 bg-red-50' : 'border-green-200 text-green-600 bg-green-50'}`}>
+                           {companies.find(c => c.id === selectedCompanyId)?.is_active ? 'Deactivate' : 'Activate'}
                          </button>
                          <button onClick={() => { setEditingCompany(companies.find(c => c.id === selectedCompanyId)); setIsCompanyModalOpen(true); }} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg"><Edit3 className="h-4 w-4 text-slate-600" /></button>
                       </div>
@@ -412,16 +412,16 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                   <div className="p-6">
                     <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Representative Registry</h5>
                     <div className="space-y-2">
-                       {mrs.filter(m => m.companyName === companies.find(c => c.id === selectedCompanyId)?.name).map(mr => (
+                       {mrs.filter(m => m.company_name === companies.find(c => c.id === selectedCompanyId)?.name).map(mr => (
                          <div key={mr.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 hover:border-indigo-200 transition-all cursor-pointer" onClick={() => setSelectedMR(mr)}>
                             <div className="flex items-center gap-3">
                                <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center"><User className="h-4 w-4 text-slate-400" /></div>
-                               <div><p className="text-xs font-black">{mr.fullName}</p><p className="text-[9px] text-slate-400">{mr.mrId}</p></div>
+                               <div><p className="text-xs font-black">{mr.full_name}</p><p className="text-[9px] text-slate-400">{mr.mr_code}</p></div>
                             </div>
                             <span className={`text-[9px] font-black uppercase tracking-tighter px-2 py-0.5 rounded ${mr.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>{mr.status}</span>
                          </div>
                        ))}
-                       {mrs.filter(m => m.companyName === companies.find(c => c.id === selectedCompanyId)?.name).length === 0 && (
+                       {mrs.filter(m => m.company_name === companies.find(c => c.id === selectedCompanyId)?.name).length === 0 && (
                          <p className="text-center py-12 text-slate-400 italic text-xs">No MRs registered for this company yet.</p>
                        )}
                     </div>
@@ -578,7 +578,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                 <textarea value={editingHospital?.address || ''} onChange={e => setEditingHospital({...editingHospital, address: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none h-20" placeholder="Hospital Address" />
                 <div className="grid grid-cols-2 gap-4">
                   <input type="email" value={editingHospital?.email || ''} onChange={e => setEditingHospital({...editingHospital, email: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Contact Email" />
-                  <input type="tel" value={editingHospital?.mobileNumber || ''} onChange={e => setEditingHospital({...editingHospital, mobileNumber: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Contact Mobile" />
+                  <input type="tel" value={editingHospital?.mobile_number || ''} onChange={e => setEditingHospital({...editingHospital, mobile_number: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Contact Mobile" />
                 </div>
               </div>
 
@@ -588,10 +588,10 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                   <ShieldCheck className="h-4 w-4 text-indigo-400" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <input required type="text" value={adminData.fullName} onChange={e => setAdminData({...adminData, fullName: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Admin Full Name" />
-                  <input required type="text" value={adminData.mobileNumber} onChange={e => setAdminData({...adminData, mobileNumber: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Admin Login ID" />
+                  <input required type="text" value={adminData.full_name} onChange={e => setAdminData({...adminData, full_name: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Admin Full Name" />
+                  <input required type="text" value={adminData.mobile_number} onChange={e => setAdminData({...adminData, mobile_number: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Admin Login ID" />
                   <input required={!editingHospital?.id} type={showPasswords ? "text" : "password"} value={adminData.password} onChange={e => setAdminData({...adminData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder={editingHospital?.id ? "Set New Admin Password (Optional)" : "Admin Password"} />
-                  <input required={!editingHospital?.id && !!adminData.password} type={showPasswords ? "text" : "password"} value={adminData.confirmPassword} onChange={e => setAdminData({...adminData, confirmPassword: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Confirm Admin Password" />
+                  <input required={!editingHospital?.id && !!adminData.password} type={showPasswords ? "text" : "password"} value={adminData.confirm_password} onChange={e => setAdminData({...adminData, confirm_password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Confirm Admin Password" />
                 </div>
               </div>
 
@@ -601,12 +601,12 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                   <Lock className="h-4 w-4 text-slate-400" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <input required type="text" value={securityData.fullName} onChange={e => setSecurityData({...securityData, fullName: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Full Name" />
-                  <input required type="text" value={securityData.mobileNumber} onChange={e => setSecurityData({...securityData, mobileNumber: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Login ID" />
+                  <input required type="text" value={securityData.full_name} onChange={e => setSecurityData({...securityData, full_name: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Full Name" />
+                  <input required type="text" value={securityData.mobile_number} onChange={e => setSecurityData({...securityData, mobile_number: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Login ID" />
                   {!editingHospital?.id && (
                     <>
                       <input required type={showPasswords ? "text" : "password"} value={securityData.password} onChange={e => setSecurityData({...securityData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Password" />
-                      <input required={!!securityData.password} type={showPasswords ? "text" : "password"} value={securityData.confirmPassword} onChange={e => setSecurityData({...securityData, confirmPassword: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Confirm Guard Password" />
+                      <input required={!!securityData.password} type={showPasswords ? "text" : "password"} value={securityData.confirm_password} onChange={e => setSecurityData({...securityData, confirm_password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Confirm Guard Password" />
                     </>
                   )}
                 </div>
@@ -614,7 +614,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
 
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={editingHospital?.isActive} onChange={e => setEditingHospital({...editingHospital, isActive: e.target.checked})} className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" />
+                  <input type="checkbox" checked={editingHospital?.is_active} onChange={e => setEditingHospital({...editingHospital, is_active: e.target.checked})} className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" />
                   <span className="text-xs font-bold text-slate-600 uppercase">Node Active</span>
                 </label>
               </div>
@@ -643,23 +643,23 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                  </div>
                  <div>
                     <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-1">Partner Code</label>
-                    <input required type="text" value={editingCompany?.companyCode || ''} onChange={e => setEditingCompany({...editingCompany, companyCode: e.target.value})} className="w-full px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl font-mono font-black text-indigo-700 uppercase" placeholder="e.g. AZ-01" />
+                    <input required type="text" value={editingCompany?.company_code || ''} onChange={e => setEditingCompany({...editingCompany, company_code: e.target.value})} className="w-full px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl font-mono font-black text-indigo-700 uppercase" placeholder="e.g. AZ-01" />
                  </div>
                  <textarea value={editingCompany?.address || ''} onChange={e => setEditingCompany({...editingCompany, address: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none h-20" placeholder="Company Address" />
                  <div className="grid grid-cols-2 gap-4">
-                   <input type="tel" value={editingCompany?.contactNumber || ''} onChange={e => setEditingCompany({...editingCompany, contactNumber: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Contact Phone" />
-                   <input type="email" value={editingCompany?.financeEmail || ''} onChange={e => setEditingCompany({...editingCompany, financeEmail: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Finance Email" />
+                   <input type="tel" value={editingCompany?.contact_number || ''} onChange={e => setEditingCompany({...editingCompany, contact_number: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Contact Phone" />
+                   <input type="email" value={editingCompany?.finance_email || ''} onChange={e => setEditingCompany({...editingCompany, finance_email: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Finance Email" />
                  </div>
 
                  <div className="pt-4 border-t border-slate-100">
                     <p className="text-[10px] font-black text-indigo-400 uppercase mb-3">Provision Admin Account</p>
                     <div className="space-y-2">
-                       <input required type="text" value={editingCompany?.adminMobile || ''} onChange={e => setEditingCompany({...editingCompany, adminMobile: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder="Admin Login ID" />
+                       <input required type="text" value={editingCompany?.admin_mobile || ''} onChange={e => setEditingCompany({...editingCompany, admin_mobile: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder="Admin Login ID" />
                        <div className="grid grid-cols-2 gap-2">
-                         <input required={!editingCompany?.id} type={showPasswords ? "text" : "password"} value={editingCompany?.adminPassword || ''} onChange={e => setEditingCompany({...editingCompany, adminPassword: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder={editingCompany?.id ? "Set New Password (Optional)" : "Admin Password"} />
-                         <input required={!editingCompany?.id && !!editingCompany?.adminPassword} type={showPasswords ? "text" : "password"} value={editingCompany?.adminConfirmPassword || ''} onChange={e => setEditingCompany({...editingCompany, adminConfirmPassword: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder="Confirm Password" />
+                         <input required={!editingCompany?.id} type={showPasswords ? "text" : "password"} value={editingCompany?.admin_password || ''} onChange={e => setEditingCompany({...editingCompany, admin_password: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder={editingCompany?.id ? "Set New Password (Optional)" : "Admin Password"} />
+                         <input required={!editingCompany?.id && !!editingCompany?.admin_password} type={showPasswords ? "text" : "password"} value={editingCompany?.admin_confirm_password || ''} onChange={e => setEditingCompany({...editingCompany, admin_confirm_password: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder="Confirm Password" />
                        </div>
-                       <input required type="email" value={editingCompany?.contactEmail || ''} onChange={e => setEditingCompany({...editingCompany, contactEmail: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder="Official Corporate Email" />
+                       <input required type="email" value={editingCompany?.contact_email || ''} onChange={e => setEditingCompany({...editingCompany, contact_email: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder="Official Corporate Email" />
                     </div>
                  </div>
               </div>
@@ -682,20 +682,20 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                  <User className="h-10 w-10 text-indigo-600" />
                </div>
                <div>
-                  <h4 className="text-2xl font-black text-slate-800">{selectedMR.fullName}</h4>
-                  <p className="text-indigo-600 font-bold text-sm tracking-wide uppercase">{selectedMR.companyName}</p>
+                  <h4 className="text-2xl font-black text-slate-800">{selectedMR.full_name}</h4>
+                  <p className="text-indigo-600 font-bold text-sm tracking-wide uppercase">{selectedMR.company_name}</p>
                </div>
                
                <div className="grid grid-cols-2 gap-4 text-left">
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">System Access ID</p><p className="font-bold text-slate-700 font-mono text-xs">{selectedMR.mrId}</p></div>
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">SLCPI ID</p><p className="font-bold text-slate-700 font-mono text-xs">{selectedMR.slcpiId || 'N/A'}</p></div>
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Mobile</p><p className="font-bold text-slate-700 text-sm">{selectedMR.mobileNumber}</p></div>
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">SLCPI Expiry</p><p className="font-bold text-slate-700 text-sm">{selectedMR.slcpiExpiry || 'N/A'}</p></div>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">System Access ID</p><p className="font-bold text-slate-700 font-mono text-xs">{selectedMR.mr_code}</p></div>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">SLCPI ID</p><p className="font-bold text-slate-700 font-mono text-xs">{selectedMR.slcpi_id || 'N/A'}</p></div>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Mobile</p><p className="font-bold text-slate-700 text-sm">{selectedMR.mobile_number}</p></div>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">SLCPI Expiry</p><p className="font-bold text-slate-700 text-sm">{selectedMR.slcpi_expiry || 'N/A'}</p></div>
                </div>
 
-               {selectedMR.slcpiPhoto && (
+               {selectedMR.slcpi_photo && (
                  <div className="rounded-2xl overflow-hidden border border-slate-200 mt-4 bg-slate-50 p-2 shadow-inner">
-                   <img src={selectedMR.slcpiPhoto} className="w-full object-contain max-h-48 rounded-xl" alt="ID Document" />
+                   <img src={selectedMR.slcpi_photo} className="w-full object-contain max-h-48 rounded-xl" alt="ID Document" />
                  </div>
                )}
 

@@ -39,12 +39,12 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
 
   const refreshData = async () => {
     const allCompanies = await storageService.getCompanies();
-    const myCompany = allCompanies.find(c => c.id === user.companyId);
+    const myCompany = allCompanies.find(c => c.id === user.company_id);
     if (myCompany) {
       setCompany(myCompany);
       setEditingProfile(myCompany);
       const allMRs = await storageService.getMRs();
-      setMrs(allMRs.filter(m => m.companyName === myCompany.name));
+      setMrs(allMRs.filter(m => m.company_name === myCompany.name));
     }
     setAllApps(await storageService.getApplications());
     setAllPasses(await storageService.getPasses());
@@ -62,7 +62,7 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setEditingMR(prev => ({ ...prev, slcpiPhoto: reader.result as string }));
+        setEditingMR(prev => ({ ...prev, slcpi_photo: reader.result as string }));
       };
       reader.readAsDataURL(file);
     }
@@ -70,7 +70,7 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
 
   const handleSaveMR = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingMR?.fullName || !editingMR?.mobileNumber || !editingMR?.loginId || !editingMR?.identificationNumber || !editingMR?.slcpiId || !editingMR?.slcpiExpiry || !company) {
+    if (!editingMR?.full_name || !editingMR?.mobile_number || !editingMR?.identification_number || !editingMR?.slcpi_id || !editingMR?.slcpi_expiry || !company) {
       showFeedback("Required fields missing. Please fill all fields including SLCPI details.", "error");
       return;
     }
@@ -82,7 +82,7 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
     }
 
     // Password confirmation check
-    if (editingMR?.password && editingMR.password !== editingMR.confirmPassword) {
+    if (editingMR?.password && editingMR.password !== editingMR.confirm_password) {
       showFeedback("Passwords do not match.", "error");
       return;
     }
@@ -96,29 +96,28 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
     setIsSaving(true);
 
     const allMRs = await storageService.getMRs();
-    // Check for duplicate loginId or mobileNumber globally
-    const duplicate = allMRs.find(m => (m.loginId === editingMR.loginId || m.mobileNumber === editingMR.mobileNumber) && m.id !== editingMR.id);
+    // Check for duplicate mobile_number globally
+    const duplicate = allMRs.find(m => m.mobile_number === editingMR.mobile_number && m.id !== editingMR.id);
     if (duplicate) {
-      showFeedback("Mobile Number / Login ID is already taken in the system.", "error");
+      showFeedback("Mobile Number is already taken in the system.", "error");
       setIsSaving(false);
       return;
     }
 
     const mrData: MedicalRep = {
       ...(editingMR.id ? { id: editingMR.id } : {}),
-      fullName: editingMR.fullName,
-      companyName: company.name,
-      companyId: company.id, // CRITICAL: Link to the company admin's company
-      mrId: editingMR.mrId || `SLCPI-${Math.floor(10000 + Math.random() * 90000)}`,
-      loginId: editingMR.loginId,
-      mobileNumber: editingMR.mobileNumber,
+      full_name: editingMR.full_name,
+      company_name: company.name,
+      company_id: company.id, // CRITICAL: Link to the company admin's company
+      mr_code: editingMR.mr_code || `SLCPI-${Math.floor(10000 + Math.random() * 90000)}`,
+      mobile_number: editingMR.mobile_number,
       password: editingMR.password || undefined, // Password is validated above for new MRs 
-      identificationNumber: editingMR.identificationNumber || '',
-      slcpiId: editingMR.slcpiId || '',
-      slcpiPhoto: editingMR.slcpiPhoto,
-      slcpiExpiry: editingMR.slcpiExpiry,
+      identification_number: editingMR.identification_number || '',
+      slcpi_id: editingMR.slcpi_id || '',
+      slcpi_photo: editingMR.slcpi_photo,
+      slcpi_expiry: editingMR.slcpi_expiry,
       status: (editingMR.status as any) || 'active',
-      createdAt: editingMR.createdAt || new Date().toISOString()
+      created_at: editingMR.created_at || new Date().toISOString()
     } as MedicalRep;
 
     try {
@@ -136,10 +135,10 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
       if (editingMR.id) {
         setIsMRModalOpen(false);
         setEditingMR(null);
-        showFeedback(`Updated profile for ${mrData.fullName}`);
+        showFeedback(`Updated profile for ${mrData.full_name}`);
       } else {
         setLastSavedMR(savedMR || mrData); 
-        showFeedback(`Successfully registered ${mrData.fullName}`, 'success');
+        showFeedback(`Successfully registered ${mrData.full_name}`, 'success');
       }
     } catch (err: any) {
       console.error("Save MR error:", err);
@@ -197,15 +196,15 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
     }
   };
 
-  const getMRStats = (mrId: string) => {
-    const mrPasses = allPasses.filter(p => p.mrId === mrId && p.entryStatus === 'entered');
+  const getMRStats = (mr_id: string) => {
+    const mrPasses = allPasses.filter(p => p.mr_id === mr_id && p.entry_status === 'entered');
     return { visits: mrPasses.length };
   };
 
   const filteredMRs = mrs.filter(m => 
-    m.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    m.loginId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.mrId.toLowerCase().includes(searchTerm.toLowerCase())
+    m.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    m.mobile_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    m.mr_code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -232,11 +231,11 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 ml-1">Company Code</label>
-                    <input type="text" value={editingProfile?.companyCode || ''} readOnly className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-500" />
+                    <input type="text" value={editingProfile?.company_code || ''} readOnly className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-500" />
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 ml-1">Contact Email</label>
-                    <input type="email" value={editingProfile?.email || ''} onChange={e => setEditingProfile(prev => prev ? {...prev, email: e.target.value} : null)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    <input type="email" value={editingProfile?.contact_email || ''} onChange={e => setEditingProfile(prev => prev ? {...prev, contact_email: e.target.value} : null)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
                   </div>
                 </div>
                 <button onClick={handleSaveProfile} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
@@ -280,7 +279,7 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Pharmaceutical Partner</p>
                 <h3 className="text-2xl font-black truncate">{company?.name || "Loading..."}</h3>
               </div>
-              <p className="text-[10px] font-bold mt-4 bg-indigo-500/30 w-fit px-2 py-1 rounded">Code: {company?.companyCode}</p>
+              <p className="text-[10px] font-bold mt-4 bg-indigo-500/30 w-fit px-2 py-1 rounded">Code: {company?.company_code}</p>
             </div>
             
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
@@ -333,7 +332,7 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                   <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 bg-slate-50/30">
                     <th className="px-6 py-4">Full Identity</th>
                     <th className="px-6 py-4">System IDs</th>
-                    <th className="px-6 py-4">Login ID (Mobile)</th>
+                    <th className="px-6 py-4">Mobile Number</th>
                     <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
@@ -347,8 +346,8 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                              <User className="h-5 w-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
                            </div>
                            <div>
-                              <p className="font-black text-slate-800 text-sm leading-tight">{mr.fullName}</p>
-                              <p className="text-[10px] font-bold text-slate-400 mt-0.5">{mr.identificationNumber || 'NIC Pending'}</p>
+                              <p className="font-black text-slate-800 text-sm leading-tight">{mr.full_name}</p>
+                              <p className="text-[10px] font-bold text-slate-400 mt-0.5">{mr.identification_number || 'NIC Pending'}</p>
                            </div>
                         </div>
                       </td>
@@ -356,18 +355,18 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                         <div className="space-y-1">
                            <div className="flex items-center gap-1.5">
                               <ShieldCheck className="h-3 w-3 text-indigo-400" />
-                              <span className="text-[10px] font-black text-slate-700 uppercase">{mr.mrId}</span>
+                              <span className="text-[10px] font-black text-slate-700 uppercase">{mr.mr_code}</span>
                            </div>
-                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">SLCPI: {mr.slcpiId || '--'}</p>
+                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">SLCPI: {mr.slcpi_id || '--'}</p>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 group/login">
                            <div className="bg-slate-50 border border-slate-100 px-2 py-1 rounded-lg">
-                             <p className="text-[10px] font-mono font-black text-indigo-600 tracking-tighter">{mr.loginId}</p>
+                             <p className="text-[10px] font-mono font-black text-indigo-600 tracking-tighter">{mr.mobile_number}</p>
                            </div>
                            <button 
-                             onClick={() => handleCopy(mr.loginId, `login-${mr.id}`)}
+                             onClick={() => handleCopy(mr.mobile_number, `login-${mr.id}`)}
                              className="opacity-0 group-hover/login:opacity-100 p-1.5 hover:bg-indigo-100 rounded-md transition-all"
                            >
                              {copiedId === `login-${mr.id}` ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3 text-slate-400" />}
@@ -445,22 +444,22 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                    <User className="h-8 w-8 text-indigo-600" />
                  </div>
                  <div>
-                    <h4 className="text-xl font-black text-slate-800">{summaryMR.fullName}</h4>
-                    <p className="text-xs font-black text-indigo-600 uppercase tracking-widest">{summaryMR.companyName}</p>
+                    <h4 className="text-xl font-black text-slate-800">{summaryMR.full_name}</h4>
+                    <p className="text-xs font-black text-indigo-600 uppercase tracking-widest">{summaryMR.company_name}</p>
                  </div>
               </div>
               
                <div className="grid grid-cols-2 gap-3 pt-4">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase">Official ID</p><p className="font-bold text-slate-800">{summaryMR.mrId}</p></div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase">Mobile</p><p className="font-bold text-slate-800">{summaryMR.mobileNumber}</p></div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase">SLCPI ID</p><p className="font-bold text-slate-800">{summaryMR.slcpiId || 'N/A'}</p></div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase">Official ID</p><p className="font-bold text-slate-800">{summaryMR.mr_code}</p></div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase">Mobile</p><p className="font-bold text-slate-800">{summaryMR.mobile_number}</p></div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase">SLCPI ID</p><p className="font-bold text-slate-800">{summaryMR.slcpi_id || 'N/A'}</p></div>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase">Successful Visits</p><p className="text-2xl font-black text-indigo-600">{getMRStats(summaryMR.id).visits}</p></div>
               </div>
 
-              {summaryMR.slcpiPhoto && (
+              {summaryMR.slcpi_photo && (
                 <div className="rounded-2xl overflow-hidden border border-slate-100 mt-4 bg-slate-50 p-2">
                    <p className="text-[10px] font-black text-slate-400 uppercase mb-2 ml-2">Compliance Document</p>
-                   <img src={summaryMR.slcpiPhoto} className="w-full object-contain max-h-48 rounded-xl" alt="SLCPI" />
+                   <img src={summaryMR.slcpi_photo} className="w-full object-contain max-h-48 rounded-xl" alt="SLCPI" />
                 </div>
               )}
             </div>
@@ -483,16 +482,16 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                     <CheckCircle2 className="h-10 w-10 text-green-600" />
                  </div>
                  <h4 className="text-2xl font-black text-slate-800 mb-2">Registration Successful</h4>
-                 <p className="text-slate-500 font-medium mb-8">Staff member <span className="text-indigo-600 font-bold">{lastSavedMR.fullName}</span> has been deployed to the system.</p>
+                 <p className="text-slate-500 font-medium mb-8">Staff member <span className="text-indigo-600 font-bold">{lastSavedMR.full_name}</span> has been deployed to the system.</p>
                  <div className="p-6 bg-indigo-50 rounded-2xl border border-indigo-100 text-left w-full mb-8">
                     <p className="text-[10px] font-black text-indigo-400 uppercase mb-4 tracking-widest">Initial System Credentials</p>
                     <div className="space-y-3">
                        <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
                           <div className="flex items-center gap-2">
                              <User className="h-4 w-4 text-slate-400" />
-                             <span className="text-xs font-bold text-slate-500 uppercase">Login ID (Mobile)</span>
+                             <span className="text-xs font-bold text-slate-500 uppercase">Mobile Number</span>
                           </div>
-                          <p className="text-sm font-black font-mono text-indigo-600">{lastSavedMR.mobileNumber}</p>
+                          <p className="text-sm font-black font-mono text-indigo-600">{lastSavedMR.mobile_number}</p>
                        </div>
                        <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
                           <div className="flex items-center gap-2">
@@ -520,10 +519,10 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                        <User className="h-4 w-4 text-indigo-500" />
                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Personal Identity</p>
                     </div>
-                    <input required type="text" value={editingMR?.fullName || ''} onChange={e => setEditingMR({...editingMR, fullName: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Full Legal Name" />
+                    <input required type="text" value={editingMR?.full_name || ''} onChange={e => setEditingMR({...editingMR, full_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Full Legal Name" />
                     <div className="grid grid-cols-2 gap-4">
-                      <input required type="text" value={editingMR?.mobileNumber || ''} onChange={e => setEditingMR({...editingMR, mobileNumber: e.target.value, loginId: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Contact Mobile" />
-                      <input required type="text" value={editingMR?.identificationNumber || ''} onChange={e => setEditingMR({...editingMR, identificationNumber: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="National ID / NIC" />
+                      <input required type="text" value={editingMR?.mobile_number || ''} onChange={e => setEditingMR({...editingMR, mobile_number: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Contact Mobile" />
+                      <input required type="text" value={editingMR?.identification_number || ''} onChange={e => setEditingMR({...editingMR, identification_number: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="National ID / NIC" />
                     </div>
                   </div>
 
@@ -541,12 +540,12 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                     )}
                     <div className="space-y-4">
                       <div className="relative">
-                         <input required type="text" value={editingMR?.mobileNumber || ''} onChange={e => setEditingMR({...editingMR, mobileNumber: e.target.value, loginId: e.target.value})} className="w-full px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl font-bold text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Mobile Number (Login ID)" />
+                         <input required type="text" value={editingMR?.mobile_number || ''} onChange={e => setEditingMR({...editingMR, mobile_number: e.target.value})} className="w-full px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl font-bold text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Mobile Number" />
                          <ShieldCheck className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-300" />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <input required={!editingMR?.id} type="password" value={editingMR?.password || ''} onChange={e => setEditingMR({...editingMR, password: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder={editingMR?.id ? "Set New Password (Optional)" : "System Password"} />
-                        <input required={!editingMR?.id && !!editingMR?.password} type="password" value={editingMR?.confirmPassword || ''} onChange={e => setEditingMR({...editingMR, confirmPassword: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Confirm Password" />
+                        <input required={!editingMR?.id && !!editingMR?.password} type="password" value={editingMR?.confirm_password || ''} onChange={e => setEditingMR({...editingMR, confirm_password: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Confirm Password" />
                       </div>
                     </div>
                   </div>
@@ -558,9 +557,9 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Professional Compliance</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <input required type="text" value={editingMR?.slcpiId || ''} onChange={e => setEditingMR({...editingMR, slcpiId: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="SLCPI Number" />
+                      <input required type="text" value={editingMR?.slcpi_id || ''} onChange={e => setEditingMR({...editingMR, slcpi_id: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="SLCPI Number" />
                       <div className="relative">
-                        <input required type="date" value={editingMR?.slcpiExpiry || ''} onChange={e => setEditingMR({...editingMR, slcpiExpiry: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-indigo-500" />
+                        <input required type="date" value={editingMR?.slcpi_expiry || ''} onChange={e => setEditingMR({...editingMR, slcpi_expiry: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-indigo-500" />
                         <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                       </div>
                     </div>
@@ -568,15 +567,15 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                     <div 
                       onClick={() => fileInputRef.current?.click()}
                       className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all relative group/upload ${
-                        editingMR?.slcpiPhoto 
+                        editingMR?.slcpi_photo 
                           ? 'border-indigo-200 bg-indigo-50/30' 
                           : 'border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-white shadow-inner'
                       }`}
                     >
                       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-                      {editingMR?.slcpiPhoto ? (
+                      {editingMR?.slcpi_photo ? (
                         <div className="relative inline-block">
-                           <img src={editingMR.slcpiPhoto} className="h-32 mx-auto rounded-lg shadow-md" alt="Preview" />
+                           <img src={editingMR.slcpi_photo} className="h-32 mx-auto rounded-lg shadow-md" alt="Preview" />
                            <div className="absolute inset-0 bg-indigo-900/40 opacity-0 group-hover/upload:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
                               <p className="text-white text-[10px] font-black">CHANGE PHOTO</p>
                            </div>
