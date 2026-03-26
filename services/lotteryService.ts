@@ -38,7 +38,7 @@ export const lotteryService = {
     const hosp = hospitals.find(h => h.id === hospitalId);
     if (!hosp) return { success: false, count: 0, message: "Hospital not found" };
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA');
     
     // Only fetch applications for this hospital and today
     const sessionApps = await storageService.getApplications({ hospitalId, date: today });
@@ -55,7 +55,7 @@ export const lotteryService = {
       a.status === 'applied'
     );
 
-    if (eligibleApps.length === 0) return { success: false, count: 0, message: "No eligible applications found." };
+    if (eligibleApps.length === 0) return { success: false, count: 0, message: `No eligible applications found for ${today}.` };
 
     // SERVER-SIDE REJECTION: Enforce Cooldown during lottery logic
     const threeDaysAgo = new Date();
