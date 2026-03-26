@@ -23,7 +23,8 @@ export const HospitalService = {
       entryWindows: h.entry_windows,
       expiryTimes: h.expiry_times,
       autoLotteryEnabled: h.auto_lottery_enabled,
-      autoLotteryTimes: h.auto_lottery_times
+      autoLotteryTimes: h.auto_lottery_times,
+      companyPassLimit: h.company_pass_limit
     }));
   },
 
@@ -45,7 +46,8 @@ export const HospitalService = {
         entry_windows: h.entryWindows || {},
         expiry_times: h.expiryTimes || {}, // Save to snake_case
         auto_lottery_enabled: h.autoLotteryEnabled,
-        auto_lottery_times: h.autoLotteryTimes
+        auto_lottery_times: h.autoLotteryTimes,
+        company_pass_limit: h.companyPassLimit || {}
       }, { onConflict: 'id' }).select().single();
       
       if (error) {
@@ -67,7 +69,8 @@ export const HospitalService = {
           entryWindows: data.entry_windows,
           expiryTimes: data.expiry_times,
           autoLotteryEnabled: data.auto_lottery_enabled,
-          autoLotteryTimes: data.auto_lottery_times
+          autoLotteryTimes: data.auto_lottery_times,
+          companyPassLimit: data.company_pass_limit
         });
       }
     }
@@ -105,6 +108,7 @@ export const HospitalService = {
         id: targetId,
         hospital_id: u.hospitalId,
         mobile_number: u.mobileNumber,
+        login_id: u.mobileNumber.trim(), // For admins, mobileNumber is usually the login ID
         role: u.role === 'ADMIN' ? 'HOSPITAL_ADMIN' : u.role,
         full_name: u.fullName
       };
