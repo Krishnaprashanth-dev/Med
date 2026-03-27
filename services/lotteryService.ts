@@ -73,7 +73,23 @@ export const lotteryService = {
       return !hasRecent;
     });
 
-    if (filteredApps.length === 0) return { success: false, count: 0, message: "No eligible applications after cooldown check." };
+    // ✅ FIX: Track apps removed by cooldown — they need a terminal status too
+    const cooldownRejectedApps = eligibleApps.filter(
+      app => !filteredApps.find(f => f.id === app.id)
+    );
+
+    if (filteredApps.length === 0) {
+      // ✅ FIX: Even if everyone is cooldown-rejected, mark them all as waitlisted
+      // so they don't stay stuck as 'applied' and re-appear in the MR dashboard
+      if (cooldownRejectedApps.length > 0) {
+        const cooldownUpdated = cooldownRejectedApps.map(app => ({
+          ...app,
+          status: 'waitlisted' as const
+        }));
+        await storageService.saveApplications(cooldownUpdated);
+      }
+      return { success: false, count: 0, message: "No eligible applications after cooldown check." };
+    }
 
     // Calculate Scores
     const allPassesForPriority = await storageService.getPasses({ mrId: filteredApps.map(a => a.mrId) });
@@ -148,13 +164,21 @@ export const lotteryService = {
       entryStatus: 'not_entered'
     }));
 
-    // Save Updates (Consistent with Version 1 logic)
+    // Save Updates — mark scored apps as selected or waitlisted
     const updatedApps = scored.map(s => {
       if (usedApplicants.has(s.id)) return { ...s, status: 'selected' as const };
       return { ...s, status: 'waitlisted' as const };
     });
 
-    await storageService.saveApplications(updatedApps);
+    // ✅ FIX: Also mark cooldown-rejected apps as waitlisted so they don't stay
+    // stuck as 'applied' — which caused the session to re-appear in MR dashboard
+    // and prevented the permit window from showing after the lottery spin.
+    const cooldownUpdated = cooldownRejectedApps.map(app => ({
+      ...app,
+      status: 'waitlisted' as const
+    }));
+
+    await storageService.saveApplications([...updatedApps, ...cooldownUpdated]);
     await storageService.savePasses(newPasses);
     await storageService.log('SYSTEM', 'LOTTERY_RUN', `Hospital: ${hosp.name}, Session: ${session}, Passes: ${selected.length}`);
 
