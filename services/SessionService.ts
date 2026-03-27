@@ -17,13 +17,10 @@ export const SessionService = {
     return bcrypt.hash(password, salt);
   },
   updatePassword: async (userId: string, newPassword: string) => {
-    // Hash the password before saving for security
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-    
+    // Send plain text password; Supabase trigger will handle hashing
     const { error } = await supabase
       .from('profiles')
-      .update({ password: hashedPassword })
+      .update({ password: newPassword.trim() })
       .eq('id', userId);
     if (error) throw error;
   }

@@ -38,9 +38,13 @@ async function startServer() {
 
   // API Routes
   app.post('/api/auth/login', async (req, res) => {
-    const { mobile, password, role } = req.body;
+    let { mobile, password, role } = req.body;
     
     try {
+      // Trim inputs to avoid whitespace issues
+      mobile = typeof mobile === 'string' ? mobile.trim() : mobile;
+      password = typeof password === 'string' ? password.trim() : password;
+
       console.log(`[Login Attempt] Mobile: ${mobile}, Role: ${role}`);
       
       // 1. Root Bypass (Securely handled on server)
@@ -66,59 +70,82 @@ async function startServer() {
       }
 
       // 2. Lookup user in Supabase
+      // We check both mobile_number and full_name as "Identity"
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('*, mrs(*, pharma_companies(name))')
-        .eq('mobile_number', mobile);
+        .or(`mobile_number.eq."${mobile}",full_name.eq."${mobile}"`);
 
       if (error) {
         console.error('[Supabase Query Error]', error);
         throw error;
       }
       if (!profiles || profiles.length === 0) {
+        console.log(`[Login] No profiles found for identity: ${mobile}`);
         return res.status(401).json({ success: false, message: 'Invalid credentials. Account not found.' });
       }
 
-      // 3. Verify password
+      console.log(`[Login] Found ${profiles.length} profiles for identity: ${mobile}`);
+      profiles.forEach(p => console.log(` - Profile: ${p.full_name}, Role: ${p.role}`));
+
+      // 3. Verify password and find the best matching profile for the requested role
+      let dbRole = role;
+      if (role === 'ADMIN') dbRole = 'HOSPITAL_ADMIN';
+      if (role === 'COMPANY_ADMIN') dbRole = 'COMPANY';
+
+      console.log(`[Login] Requested Role: ${role} (DB Role: ${dbRole})`);
+
       let matchedProfile = null;
+      let passwordMatchFound = false;
+
       for (const p of profiles) {
         if (!p.password || typeof p.password !== 'string') continue;
         
         // Check if it's a bcrypt hash
-        const isHash = p.password.startsWith('$2a$') || p.password.startsWith('$2b$');
+        const isHash = p.password.startsWith('$2a$') || p.password.startsWith('$2b$') || p.password.startsWith('$2y$');
         
         let isMatch = false;
         if (isHash) {
           try {
             isMatch = await bcrypt.compare(password, p.password);
           } catch (e) {
-            // If compare fails (e.g. malformed hash), fallback to plain text check
             isMatch = password === p.password;
           }
         } else {
-          // Plain text comparison
           isMatch = password === p.password;
         }
         
         if (isMatch) {
-          matchedProfile = p;
-          break;
+          passwordMatchFound = true;
+          console.log(`[Login] Password matched for profile: ${p.full_name} (${p.role})`);
+          // If this profile matches the requested role or is a Super Admin, it's the perfect match
+          if (p.role === dbRole || p.role === 'SUPER_ADMIN') {
+            matchedProfile = p;
+            console.log(`[Login] Perfect role match found: ${p.role}`);
+            break; 
+          }
+          // Otherwise, keep it as a backup in case we don't find a better role match
+          if (!matchedProfile) {
+            matchedProfile = p;
+          }
         }
       }
 
-      if (!matchedProfile) {
+      if (!passwordMatchFound) {
+        console.log(`[Login] Password mismatch for all found profiles`);
         return res.status(401).json({ success: false, message: 'Invalid password.' });
       }
 
-      // 4. Role Validation
-      let dbRole = role;
-      if (role === 'ADMIN') dbRole = 'HOSPITAL_ADMIN';
-      if (role === 'COMPANY_ADMIN') dbRole = 'COMPANY';
+      if (!matchedProfile) {
+        return res.status(401).json({ success: false, message: 'Authentication failed.' });
+      }
 
+      // 4. Role Validation
       const isSuperAdmin = matchedProfile.role === 'SUPER_ADMIN';
       const isCorrectPortal = matchedProfile.role === dbRole;
 
       if (!isSuperAdmin && !isCorrectPortal) {
+        console.log(`[Login] Role mismatch: User is ${matchedProfile.role}, trying to access ${dbRole}`);
         return res.status(403).json({ 
           success: false, 
           message: `This account is registered as ${matchedProfile.role}. Please use the correct portal.` 
@@ -178,7 +205,7 @@ async function startServer() {
 
       const auditResults = profiles.map(p => {
         const hasPassword = !!p.password;
-        const isHash = p.password?.startsWith('$2a$') || p.password?.startsWith('$2b$');
+        const isHash = p.password?.startsWith('$2a$') || p.password?.startsWith('$2b$') || p.password?.startsWith('$2y$');
         
         return {
           id: p.id,

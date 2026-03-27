@@ -66,7 +66,7 @@ export const MRService = {
       
       // Only include password if it's provided (new MR or explicit change)
       if (mr.password) {
-        profileUpdate.password = await SessionService.hashPassword(mr.password.trim());
+        profileUpdate.password = mr.password.trim();
       }
 
       const { data: profileData, error: profileError } = await supabase.from('profiles').upsert(profileUpdate).select().single();

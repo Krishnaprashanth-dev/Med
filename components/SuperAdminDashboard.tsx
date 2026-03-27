@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { 
   Building2, Users, Settings, Plus, Power, Activity, Edit3, Trash2, X, 
   Briefcase, Clock, User, ShieldCheck, Lock, Key, Image as ImageIcon, 
-  CheckCircle, TrendingUp, AlertTriangle, Info, Calendar, Mail, Phone, Eye, EyeOff, MapPin, CreditCard, Zap
+  CheckCircle, TrendingUp, AlertTriangle, Info, Calendar, Mail, Phone, Eye, EyeOff, MapPin, CreditCard, Zap, History
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { Hospital, PharmaCompany, MedicalRep, HospitalUser, PassApplication, IssuedPass, AuthUser, AuditLog } from '../types';
@@ -32,13 +32,13 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
   // Hospital Modal States
   const [isHospitalModalOpen, setIsHospitalModalOpen] = useState(false);
   const [editingHospital, setEditingHospital] = useState<Partial<Hospital> | null>(null);
-  const [adminData, setAdminData] = useState({ fullName: '', mobileNumber: '', password: '' });
-  const [securityData, setSecurityData] = useState({ fullName: '', mobileNumber: '', password: '' });
+  const [adminData, setAdminData] = useState({ fullName: '', mobileNumber: '', password: '', confirmPassword: '' });
+  const [securityData, setSecurityData] = useState({ fullName: '', mobileNumber: '', password: '', confirmPassword: '' });
   const [showPasswords, setShowPasswords] = useState(false);
 
   // Company Modal States
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
-  const [editingCompany, setEditingCompany] = useState<Partial<PharmaCompany> | null>(null);
+  const [editingCompany, setEditingCompany] = useState<Partial<PharmaCompany> & { adminConfirmPassword?: string } | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [selectedMR, setSelectedMR] = useState<MedicalRep | null>(null);
 
@@ -47,22 +47,28 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
   }, []);
 
   const refreshData = async () => {
-    setHospitals(await storageService.getHospitals());
-    setCompanies(await storageService.getCompanies());
-    setMrs(await storageService.getMRs());
-    setApps(await storageService.getApplications());
-    setPasses(await storageService.getPasses());
+    const freshHospitals = await storageService.getHospitals();
+    const freshCompanies = await storageService.getCompanies();
+    const freshMrs = await storageService.getMRs();
+    const freshApps = await storageService.getApplications();
+    const freshPasses = await storageService.getPasses();
+    const freshLogs = await storageService.getAuditLogs();
+
+    setHospitals(freshHospitals);
+    setCompanies(freshCompanies);
+    setMrs(freshMrs);
+    setApps(freshApps);
+    setPasses(freshPasses);
+    setAuditData(freshLogs);
     
-    const logs = await storageService.getAuditLogs();
-    setAuditData(logs);
-    detectSystemIssues(logs);
+    detectSystemIssues(freshLogs, freshHospitals, freshCompanies, freshMrs, freshApps);
   };
 
-  const detectSystemIssues = (logs: AuditLog[]) => {
+  const detectSystemIssues = (logs: AuditLog[], currentHospitals: Hospital[], currentCompanies: PharmaCompany[], currentMrs: MedicalRep[], currentApps: PassApplication[]) => {
     const issues: { type: 'error' | 'warning' | 'info', message: string, details: string }[] = [];
     
     // 1. Check for hospitals without sessions
-    hospitals.forEach(h => {
+    currentHospitals.forEach(h => {
       if (!h.supportedSessions || h.supportedSessions.length === 0) {
         issues.push({ type: 'error', message: `Hospital Configuration Error: ${h.name}`, details: 'No supported sessions configured. MRs cannot apply for passes.' });
       }
@@ -75,8 +81,8 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     });
 
     // 2. Check for companies without MRs or with many suspended MRs
-    companies.forEach(c => {
-      const companyMRs = mrs.filter(m => m.companyName === c.name);
+    currentCompanies.forEach(c => {
+      const companyMRs = currentMrs.filter(m => m.companyName === c.name);
       const activeMRCount = companyMRs.filter(m => m.status === 'active').length;
       const suspendedMRCount = companyMRs.filter(m => m.status === 'suspended').length;
 
@@ -89,7 +95,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
 
     // 3. Check for expired SLCPI IDs
     const now = new Date();
-    mrs.forEach(mr => {
+    currentMrs.forEach(mr => {
       if (mr.slcpiExpiry) {
         const expiryDate = new Date(mr.slcpiExpiry);
         if (expiryDate < now) {
@@ -105,7 +111,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
 
     // 4. Check for stale pass applications (applied but not processed for > 24h)
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const staleApps = apps.filter(a => a.status === 'applied' && new Date(a.createdAt) < twentyFourHoursAgo);
+    const staleApps = currentApps.filter(a => a.status === 'applied' && new Date(a.createdAt) < twentyFourHoursAgo);
     if (staleApps.length > 0) {
       issues.push({ type: 'warning', message: 'Stale Applications Detected', details: `${staleApps.length} pass applications have been pending for more than 24 hours.` });
     }
@@ -136,6 +142,20 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     }
     
     // Omit ID if it's a new record to let Postgres generate a UUID
+    // Password Validation
+    if (adminData.password) {
+      if (adminData.password !== adminData.confirmPassword) {
+        showFeedback("Admin passwords do not match", "error");
+        return;
+      }
+    }
+    if (securityData.password) {
+      if (securityData.password !== securityData.confirmPassword) {
+        showFeedback("Security passwords do not match", "error");
+        return;
+      }
+    }
+
     const hospitalData: Hospital = {
       ...(editingHospital.id ? { id: editingHospital.id } : {}),
       name: editingHospital.name || '',
@@ -170,11 +190,17 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
       const securityId = editingHospital.id ? (hospitalUsers.find(user => user.hospitalId === hospitalId && user.role === 'SECURITY')?.id) : undefined;
 
       const u: HospitalUser[] = [
-        { ...(adminId ? { id: adminId } : {}), hospitalId, role: 'ADMIN', fullName: adminData.fullName, mobileNumber: adminData.mobileNumber.trim(), password: adminData.password } as HospitalUser,
-        { ...(securityId ? { id: securityId } : {}), hospitalId, role: 'SECURITY', fullName: securityData.fullName, mobileNumber: securityData.mobileNumber.trim(), password: securityData.password } as HospitalUser
+        { ...(adminId ? { id: adminId } : {}), hospitalId, role: 'ADMIN', fullName: adminData.fullName, mobileNumber: adminData.mobileNumber.trim(), password: editingHospital.id ? '' : adminData.password } as HospitalUser,
+        { ...(securityId ? { id: securityId } : {}), hospitalId, role: 'SECURITY', fullName: securityData.fullName, mobileNumber: securityData.mobileNumber.trim(), password: editingHospital.id ? '' : securityData.password } as HospitalUser
       ];
       
       try {
+        // CRITICAL FIX: Use updatePassword directly for existing admins to ensure hashing/persistence
+        if (editingHospital.id && adminId && adminData.password) {
+          await storageService.updatePassword(adminId, adminData.password);
+          console.log(`[SuperAdmin] Admin password updated via SessionService for: ${adminId}`);
+        }
+        
         await storageService.saveHospitalUsers(u);
         storageService.log('SUPER_ADMIN', 'HOSPITAL_SAVE', `Hospital: ${savedHospital.name} (ID: ${hospitalId})`);
       } catch (err: any) {
@@ -187,8 +213,8 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     refreshData();
     setIsHospitalModalOpen(false);
     setEditingHospital(null);
-    setAdminData({ fullName: '', mobileNumber: '', password: '' });
-    setSecurityData({ fullName: '', mobileNumber: '', password: '' });
+    setAdminData({ fullName: '', mobileNumber: '', password: '', confirmPassword: '' });
+    setSecurityData({ fullName: '', mobileNumber: '', password: '', confirmPassword: '' });
     showFeedback(editingHospital.id ? "Hospital infrastructure updated." : "New facility provisioned.");
   };
 
@@ -201,12 +227,14 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
     setAdminData({ 
       fullName: admin?.fullName || '', 
       mobileNumber: admin?.mobileNumber || '', 
-      password: '' // Do not populate password when editing
+      password: '',
+      confirmPassword: ''
     });
     setSecurityData({ 
       fullName: security?.fullName || '', 
       mobileNumber: security?.mobileNumber || '', 
-      password: '' // Do not populate password when editing
+      password: '',
+      confirmPassword: ''
     });
     setIsHospitalModalOpen(true);
   };
@@ -226,6 +254,14 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
       }
     }
 
+    // Password Validation
+    if (editingCompany.adminPassword) {
+      if (editingCompany.adminPassword !== editingCompany.adminConfirmPassword) {
+        showFeedback("Company admin passwords do not match", "error");
+        return;
+      }
+    }
+
     // Omit ID for new records to allow Postgres to generate UUID
     const companyData: PharmaCompany = {
       ...(editingCompany.id ? { id: editingCompany.id } : {}),
@@ -235,18 +271,24 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
       contactNumber: editingCompany.contactNumber || '',
       financeEmail: editingCompany.financeEmail || '',
       adminMobile: (editingCompany.adminMobile || '').trim(),
-      adminPassword: editingCompany.adminPassword,
+      adminPassword: editingCompany.id ? '' : editingCompany.adminPassword,
       contactEmail: editingCompany.contactEmail || '',
       isActive: editingCompany.isActive ?? true,
     } as PharmaCompany;
 
     try {
+      // CRITICAL FIX: Use updatePassword directly for existing company admins
+      if (editingCompany.id && editingCompany.adminPassword) {
+        await storageService.updatePassword(editingCompany.id, editingCompany.adminPassword);
+        console.log(`[SuperAdmin] Company admin password updated via SessionService for: ${editingCompany.id}`);
+      }
+      
       await storageService.saveCompanies([companyData]);
       storageService.log('SUPER_ADMIN', 'COMPANY_SAVE', `Company: ${companyData.name}`);
       refreshData();
       setIsCompanyModalOpen(false);
       setEditingCompany(null);
-      showFeedback(`Pharmaceutical company ${companyData.name} registered.`);
+      showFeedback(editingCompany.id ? "Partner entity updated." : `Pharmaceutical company ${companyData.name} registered.`);
     } catch (err: any) {
       console.error("Company save error:", err);
       showFeedback(err.message || "Failed to register company", "error");
@@ -277,8 +319,8 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
             <button 
               onClick={() => { 
                 setEditingHospital({ supportedSessions: ['MORNING', 'EVENING', 'FULL_DAY'], isActive: true }); 
-                setAdminData({ fullName: '', mobileNumber: '', password: '' });
-                setSecurityData({ fullName: '', mobileNumber: '', password: '' });
+                setAdminData({ fullName: '', mobileNumber: '', password: '', confirmPassword: '' });
+                setSecurityData({ fullName: '', mobileNumber: '', password: '', confirmPassword: '' });
                 setIsHospitalModalOpen(true); 
               }}
               className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 shadow-lg active:scale-95 transition-all"
@@ -548,7 +590,8 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                 <div className="grid grid-cols-2 gap-3">
                   <input required type="text" value={adminData.fullName} onChange={e => setAdminData({...adminData, fullName: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Admin Full Name" />
                   <input required type="text" value={adminData.mobileNumber} onChange={e => setAdminData({...adminData, mobileNumber: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Admin Login ID" />
-                  <input required={!editingHospital?.id} type={showPasswords ? "text" : "password"} value={adminData.password} onChange={e => setAdminData({...adminData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold col-span-2" placeholder={editingHospital?.id ? "Set New Admin Password (leave blank to keep current)" : "Admin Password"} />
+                  <input required={!editingHospital?.id} type={showPasswords ? "text" : "password"} value={adminData.password} onChange={e => setAdminData({...adminData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder={editingHospital?.id ? "Set New Admin Password (Optional)" : "Admin Password"} />
+                  <input required={!editingHospital?.id && !!adminData.password} type={showPasswords ? "text" : "password"} value={adminData.confirmPassword} onChange={e => setAdminData({...adminData, confirmPassword: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Confirm Admin Password" />
                 </div>
               </div>
 
@@ -561,7 +604,10 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                   <input required type="text" value={securityData.fullName} onChange={e => setSecurityData({...securityData, fullName: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Full Name" />
                   <input required type="text" value={securityData.mobileNumber} onChange={e => setSecurityData({...securityData, mobileNumber: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Login ID" />
                   {!editingHospital?.id && (
-                    <input required type={showPasswords ? "text" : "password"} value={securityData.password} onChange={e => setSecurityData({...securityData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold col-span-2" placeholder="Guard Password" />
+                    <>
+                      <input required type={showPasswords ? "text" : "password"} value={securityData.password} onChange={e => setSecurityData({...securityData, password: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Guard Password" />
+                      <input required={!!securityData.password} type={showPasswords ? "text" : "password"} value={securityData.confirmPassword} onChange={e => setSecurityData({...securityData, confirmPassword: e.target.value})} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold" placeholder="Confirm Guard Password" />
+                    </>
                   )}
                 </div>
               </div>
@@ -609,7 +655,10 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                     <p className="text-[10px] font-black text-indigo-400 uppercase mb-3">Provision Admin Account</p>
                     <div className="space-y-2">
                        <input required type="text" value={editingCompany?.adminMobile || ''} onChange={e => setEditingCompany({...editingCompany, adminMobile: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder="Admin Login ID" />
-                       <input required={!editingCompany?.id} type="text" value={editingCompany?.adminPassword || ''} onChange={e => setEditingCompany({...editingCompany, adminPassword: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder={editingCompany?.id ? "Set New Admin Password (leave blank to keep current)" : "Admin Password"} />
+                       <div className="grid grid-cols-2 gap-2">
+                         <input required={!editingCompany?.id} type={showPasswords ? "text" : "password"} value={editingCompany?.adminPassword || ''} onChange={e => setEditingCompany({...editingCompany, adminPassword: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder={editingCompany?.id ? "Set New Password (Optional)" : "Admin Password"} />
+                         <input required={!editingCompany?.id && !!editingCompany?.adminPassword} type={showPasswords ? "text" : "password"} value={editingCompany?.adminConfirmPassword || ''} onChange={e => setEditingCompany({...editingCompany, adminConfirmPassword: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder="Confirm Password" />
+                       </div>
                        <input required type="email" value={editingCompany?.contactEmail || ''} onChange={e => setEditingCompany({...editingCompany, contactEmail: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold" placeholder="Official Corporate Email" />
                     </div>
                  </div>

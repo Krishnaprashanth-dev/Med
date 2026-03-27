@@ -81,6 +81,18 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
       return;
     }
 
+    // Password confirmation check
+    if (editingMR?.password && editingMR.password !== editingMR.confirmPassword) {
+      showFeedback("Passwords do not match.", "error");
+      return;
+    }
+
+    // Password length check
+    if (editingMR?.password && editingMR.password.length < 6) {
+      showFeedback("Password must be at least 6 characters.", "error");
+      return;
+    }
+
     setIsSaving(true);
 
     const allMRs = await storageService.getMRs();
@@ -110,6 +122,13 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
     } as MedicalRep;
 
     try {
+      // If updating an existing MR and a new password is provided, use the specialized updatePassword service
+      if (editingMR.id && editingMR.password) {
+        await storageService.updatePassword(editingMR.id, editingMR.password.trim());
+        // Remove password from mrData to avoid redundant update in saveMRs
+        delete mrData.password;
+      }
+
       const savedMRs = await storageService.saveMRs([mrData]);
       const savedMR = savedMRs?.[0];
       
@@ -514,12 +533,21 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                        <Key className="h-4 w-4 text-indigo-500" />
                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Login Credentials</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    {editingMR?.id && (
+                      <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex gap-2 mb-2">
+                        <ShieldCheck className="h-4 w-4 text-amber-600 shrink-0" />
+                        <p className="text-[10px] text-amber-700 leading-relaxed font-medium">Updating the representative's password will require them to log in again with the new credentials.</p>
+                      </div>
+                    )}
+                    <div className="space-y-4">
                       <div className="relative">
                          <input required type="text" value={editingMR?.mobileNumber || ''} onChange={e => setEditingMR({...editingMR, mobileNumber: e.target.value, loginId: e.target.value})} className="w-full px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl font-bold text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Mobile Number (Login ID)" />
                          <ShieldCheck className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-300" />
                       </div>
-                      <input required={!editingMR?.id} type="text" value={editingMR?.password || ''} onChange={e => setEditingMR({...editingMR, password: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder={editingMR?.id ? "Set New Password (leave blank to keep current)" : "System Password"} />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <input required={!editingMR?.id} type="password" value={editingMR?.password || ''} onChange={e => setEditingMR({...editingMR, password: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder={editingMR?.id ? "Set New Password (Optional)" : "System Password"} />
+                        <input required={!editingMR?.id && !!editingMR?.password} type="password" value={editingMR?.confirmPassword || ''} onChange={e => setEditingMR({...editingMR, confirmPassword: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Confirm Password" />
+                      </div>
                     </div>
                   </div>
 

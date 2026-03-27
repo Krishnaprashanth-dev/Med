@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { 
   Play, Sparkles, CheckCircle, Clock, UserPlus, Users, Settings, Save, X, 
-  Sun, Moon, Maximize, User, MapPin, ShieldCheck, 
+  Sun, Moon, Maximize, User, MapPin, ShieldCheck, Lock,
   Mail, Phone, Briefcase, CheckCircle2, Eye, 
   Zap, Timer, HelpCircle, EyeOff, AlertTriangle, History, Search, Filter, Calendar, ChevronRight, ExternalLink,
   QrCode, CheckCircle2 as SuccessIcon, Trash2, Info
@@ -38,6 +38,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   const [selectedMR, setSelectedMR] = useState<MedicalRep | null>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [showCommitSuccess, setShowCommitSuccess] = useState(false);
+  const [lotteryResult, setLotteryResult] = useState<{ success: boolean; count: number; message: string; selectedMrIds?: string[] } | null>(null);
   const [brief, setBrief] = useState('');
   
   const [historySearch, setHistorySearch] = useState('');
@@ -99,12 +100,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
 
   const handleManualLottery = async (session: SessionType) => {
     const result = await lotteryService.runLottery(user.hospitalId, session);
+    setLotteryResult(result);
     if (result.success) {
       storageService.log(user.id, 'MANUAL_LOTTERY', `Session: ${session}, Result: ${result.message}`);
-      showFeedback(result.message, 'success');
+      showFeedback("Spin Completed!", "success");
       refreshData();
-    } else {
-      showFeedback(result.message, 'error');
     }
   };
 
@@ -151,10 +151,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
       return;
     }
     try {
-      await storageService.saveHospitalUsers([{
-        ...securityUser,
-        password: securityPasswordData.new
-      }]);
+      await storageService.updatePassword(securityUser.id, securityPasswordData.new);
       setSecurityPasswordData({ new: '', confirm: '' });
       showFeedback("Security personnel password has been updated.");
     } catch (e: any) {
@@ -522,6 +519,63 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
             })}
           </div>
         </section>
+      )}
+
+      {/* Lottery Result Modal */}
+      {lotteryResult && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-[3rem] shadow-2xl p-10 max-w-sm w-full text-center animate-in zoom-in-95 duration-300 border border-slate-100">
+            <div className={`w-20 h-20 ${lotteryResult.success ? 'bg-indigo-100' : 'bg-red-100'} rounded-full flex items-center justify-center mx-auto mb-6`}>
+              {lotteryResult.success ? (
+                <Sparkles className={`h-10 w-10 ${lotteryResult.count > 0 ? 'text-indigo-600' : 'text-slate-400'}`} />
+              ) : (
+                <AlertTriangle className="h-10 w-10 text-red-600" />
+              )}
+            </div>
+            <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+              {lotteryResult.success ? 'Spin Completed!' : 'Spin Failed'}
+            </h3>
+            <p className="text-slate-500 text-sm mt-2 font-medium leading-relaxed">
+              {lotteryResult.message}
+            </p>
+            {lotteryResult.success && lotteryResult.count > 0 && (
+              <div className="mt-4 space-y-4">
+                <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Passes Issued</p>
+                  <p className="text-3xl font-black text-indigo-600">{lotteryResult.count}</p>
+                </div>
+                
+                {lotteryResult.selectedMrIds && lotteryResult.selectedMrIds.length > 0 && (
+                  <div className="text-left">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-2">Selected Representatives</p>
+                    <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                      {lotteryResult.selectedMrIds.map(id => {
+                        const mr = mrs.find(m => m.id === id);
+                        return (
+                          <div key={id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                              <User className="h-4 w-4 text-indigo-500" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-slate-800">{mr?.fullName || 'Unknown MR'}</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{mr?.companyName}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <button 
+              onClick={() => setLotteryResult(null)}
+              className={`mt-8 w-full py-4 ${lotteryResult.success ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-800 hover:bg-slate-900'} text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all active:scale-95`}
+            >
+              Acknowledge
+            </button>
+          </div>
+        </div>
       )}
 
       {/* SETTINGS TAB */}
