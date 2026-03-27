@@ -26,7 +26,7 @@ export const lotteryService = {
       if (diffDays >= 14) score += PRIORITY_WEIGHTS.NO_PASS_14_DAYS;
       else if (diffDays >= 7) score += PRIORITY_WEIGHTS.NO_PASS_7_DAYS;
       
-      // 3. Cooldown penalty (Secondary check for scoring)
+      // 3. Cooldown penalty (secondary check for scoring)
       if (diffDays <= 3) score += PRIORITY_WEIGHTS.PASS_IN_LAST_3_DAYS;
     } else {
       // First timers or long-term absent get high priority
@@ -141,7 +141,7 @@ export const lotteryService = {
             }
           }
         }
-        if (allocatedThisRound === 0) break; // No more eligible people within caps
+        if (allocatedThisRound === 0) break;
       }
     } else {
       // Simple limit if no company caps exist
@@ -149,12 +149,12 @@ export const lotteryService = {
       selected.forEach(s => usedApplicants.add(s.id));
     }
 
-    // Finalize Lists
-    const waitlisted = scored.filter(app => !usedApplicants.has(app.id));
-
     // Create New Passes
+    // ✅ FIX: Use crypto.randomUUID() to generate a valid UUID for each pass.
+    // Previously used `PASS-${s.id}` which produced an invalid UUID string
+    // and caused Supabase to reject the insert with a 400 "invalid input syntax for type uuid" error.
     const newPasses: IssuedPass[] = selected.map((s) => ({
-      id: `PASS-${s.id}`,
+      id: crypto.randomUUID(),
       mrId: s.mrId,
       hospitalId: s.hospitalId,
       session,
@@ -164,7 +164,7 @@ export const lotteryService = {
       entryStatus: 'not_entered'
     }));
 
-    // Save Updates — mark scored apps as selected or waitlisted
+    // Mark scored apps as selected or waitlisted
     const updatedApps = scored.map(s => {
       if (usedApplicants.has(s.id)) return { ...s, status: 'selected' as const };
       return { ...s, status: 'waitlisted' as const };
