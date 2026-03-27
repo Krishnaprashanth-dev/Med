@@ -103,6 +103,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
     setLotteryResult(result);
     if (result.success) {
       storageService.log(user.id, 'MANUAL_LOTTERY', `Session: ${session}, Result: ${result.message}`);
+      showFeedback("Spin Completed!", "success");
       refreshData();
     }
   };
