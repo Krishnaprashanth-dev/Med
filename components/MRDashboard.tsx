@@ -508,25 +508,6 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-        <div>
-          <h2 className="text-3xl font-black text-slate-800 tracking-tighter leading-none">
-            Welcome, {user.fullName.split(' ')[0]}
-          </h2>
-          <div className="flex items-center gap-2 mt-2">
-            <div className="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
-              <Briefcase className="h-3 w-3" />
-              {user.companyName}
-            </div>
-            <div className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
-              <ShieldCheck className="h-3 w-3" />
-              {user.mrId}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Strategy Modal */}
       {detailedStrategy && (
         <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300">

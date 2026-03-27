@@ -3,10 +3,10 @@ import { supabase } from '../supabaseClient';
 import { AuditLog } from '../types';
 
 export const AuditService = {
-  log: async (user_id: string, action: string, details: string) => {
+  log: async (userId: string, action: string, details: string) => {
     try {
       const { error } = await supabase.from('audit_logs').insert({
-        user_id,
+        user_id: userId,
         action,
         details,
         timestamp: new Date().toISOString()

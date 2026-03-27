@@ -23,8 +23,7 @@ export const HospitalService = {
       entryWindows: h.entry_windows,
       expiryTimes: h.expiry_times,
       autoLotteryEnabled: h.auto_lottery_enabled,
-      autoLotteryTimes: h.auto_lottery_times,
-      companyPassLimit: h.company_pass_limit
+      autoLotteryTimes: h.auto_lottery_times
     }));
   },
 
@@ -46,8 +45,7 @@ export const HospitalService = {
         entry_windows: h.entryWindows || {},
         expiry_times: h.expiryTimes || {}, // Save to snake_case
         auto_lottery_enabled: h.autoLotteryEnabled,
-        auto_lottery_times: h.autoLotteryTimes,
-        company_pass_limit: h.companyPassLimit || {}
+        auto_lottery_times: h.autoLotteryTimes
       }, { onConflict: 'id' }).select().single();
       
       if (error) {
@@ -69,8 +67,7 @@ export const HospitalService = {
           entryWindows: data.entry_windows,
           expiryTimes: data.expiry_times,
           autoLotteryEnabled: data.auto_lottery_enabled,
-          autoLotteryTimes: data.auto_lottery_times,
-          companyPassLimit: data.company_pass_limit
+          autoLotteryTimes: data.auto_lottery_times
         });
       }
     }
@@ -113,7 +110,7 @@ export const HospitalService = {
       };
 
       if (u.password) {
-        profileUpdate.password = u.password.trim();
+        profileUpdate.password = await SessionService.hashPassword(u.password.trim());
       }
 
       console.log(`[HospitalService] Upserting profile:`, { id: profileUpdate.id, role: profileUpdate.role, mobile: profileUpdate.mobile_number, hasPassword: !!profileUpdate.password });
