@@ -238,6 +238,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
   const [countdown, setCountdown] = useState(60);
   const [successApplication, setSuccessApplication] = useState<{hosp: string, sess: string} | null>(null);
   const [scanResult, setScanResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
   useEffect(() => { 
     refreshData(); 
@@ -352,7 +353,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
 
       const updatedPass = { ...activePass, entryStatus: 'entered' as const };
       const log = { 
-        id: Math.random().toString(36).substr(2, 9), 
+        id: crypto.randomUUID(), 
         issuedPassId: activePass.id, 
         entryTime: new Date().toISOString(), 
         verifiedBy: 'Self-Gate-Scanner-v3.5' 
@@ -394,7 +395,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
   const handleRequestAccess = async (hospitalId: string) => {
     setLoading(true);
     const newApproval: MRHospitalApproval = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       mrId: user.id,
       hospitalId: hospitalId,
       status: 'pending',
@@ -469,7 +470,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
     setLoading(true);
     const todayStr = new Date().toLocaleDateString('en-CA');
     const newApp: PassApplication = {
-      id: Math.random().toString(36).substr(2, 9), 
+      id: crypto.randomUUID(), 
       mrId: user.id, 
       hospitalId, 
       session,
@@ -488,6 +489,25 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
       setLoading(false); 
       setSuccessApplication({ hosp: hName, sess: session });
     }, 600);
+  };
+
+  const handleCancelAttendance = async (applicationId: string) => {
+    setConfirmCancelId(null);
+    setLoading(true);
+    try {
+      const result = await storageService.cancelPassAndPickNext(applicationId);
+      if (result.success) {
+        showFeedback(result.message, "success");
+        await refreshData();
+      } else {
+        showFeedback(result.message, "error");
+      }
+    } catch (err) {
+      console.error("Cancel Attendance Error:", err);
+      showFeedback("Failed to cancel attendance.", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const todayStr = new Date().toLocaleDateString('en-CA');
@@ -512,7 +532,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <div>
           <h2 className="text-3xl font-black text-slate-800 tracking-tighter leading-none">
-            Welcome, {user.fullName.split(' ')[0]}
+            Welcome, {user.fullName?.split(' ')[0] || 'User'}
           </h2>
           <div className="flex items-center gap-2 mt-2">
             <div className="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
@@ -826,6 +846,14 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                             <p className="text-[10px] font-black text-green-700 uppercase tracking-widest">GATE OPEN • EXIT AT {status.end}</p>
                          </div>
                       )}
+
+                      <button 
+                        onClick={() => setConfirmCancelId(p.id)}
+                        disabled={loading}
+                        className="w-full mt-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100 flex items-center justify-center gap-2"
+                      >
+                        <XCircle className="h-3.5 w-3.5" /> Request Cancellation
+                      </button>
                     </div>
                   );
                 })}
@@ -988,6 +1016,35 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
       )}
 
       {isScanning && <QRScannerModal onClose={() => setIsScanning(false)} onScan={handleScanDetected} mrId={user.id} hospitals={hospitals} />}
+
+      {/* Cancellation Confirmation Modal */}
+      {confirmCancelId && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-[3rem] shadow-2xl p-10 max-sm w-full text-center animate-in zoom-in-95 duration-300 border border-slate-100">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="h-10 w-10 text-red-600" />
+            </div>
+            <h3 className="text-2xl font-black text-slate-800 tracking-tight">Cancel Attendance?</h3>
+            <p className="text-slate-500 text-sm mt-2 font-medium leading-relaxed">
+              Are you sure you want to cancel your attendance? This will allow the next candidate on the waiting list to attend.
+            </p>
+            <div className="flex gap-4 mt-8">
+              <button 
+                onClick={() => setConfirmCancelId(null)}
+                className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
+              >
+                No, Keep it
+              </button>
+              <button 
+                onClick={() => handleCancelAttendance(confirmCancelId)}
+                className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-red-700 transition-all active:scale-95"
+              >
+                Yes, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
