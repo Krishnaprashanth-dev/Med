@@ -49,6 +49,12 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
       
       // Fetch cancellation requests for this company
       const requests = await storageService.getCancellationRequests({ companyId: myCompany.id });
+      console.log('[CompanyAdminDashboard] Fetched cancellation requests:', {
+        companyId: myCompany.id,
+        companyName: myCompany.name,
+        requestCount: requests.length,
+        requests: requests.map(r => ({ id: r.id, status: r.status, mrId: r.mrId }))
+      });
       setCancellationRequests(requests);
     }
     setAllApps(await storageService.getApplications());

@@ -501,6 +501,15 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
         return;
       }
 
+      console.log('[Cancellation Request] Submitting with:', {
+        mrId: user.id,
+        passId,
+        applicationId,
+        hospitalId: pass.hospitalId,
+        companyId: user.companyId,
+        session: pass.session
+      });
+
       const result = await storageService.requestCancellation(
         user.id,
         passId,

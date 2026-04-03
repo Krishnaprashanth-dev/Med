@@ -73,7 +73,7 @@ async function startServer() {
       // We check both mobile_number and full_name as "Identity"
       const { data: profiles, error } = await supabase
         .from('profiles')
-        .select('*, mrs(*, pharma_companies(name))')
+        .select('*, mrs(id, mr_code, mobile_number, company_id, status, created_at, identification_number, slcpi_id, slcpi_photo, slcpi_expiry, pharma_companies(name))')
         .or(`mobile_number.eq."${mobile}",full_name.eq."${mobile}"`);
 
       if (error) {
@@ -162,6 +162,12 @@ async function startServer() {
 
       const mrData = Array.isArray(matchedProfile.mrs) ? matchedProfile.mrs[0] : matchedProfile.mrs;
 
+      console.log(`[Login] MR Data for ${matchedProfile.full_name}:`, {
+        mrExists: !!mrData,
+        companyId: mrData?.company_id,
+        companyName: mrData?.pharma_companies?.name
+      });
+
       // Return user WITHOUT password hash
       const user = {
         id: matchedProfile.id,
@@ -173,6 +179,8 @@ async function startServer() {
         companyId: matchedProfile.role === 'COMPANY' ? matchedProfile.id : mrData?.company_id,
         companyName: mrData?.pharma_companies?.name || undefined
       };
+
+      console.log(`[Login] Final User Object:`, { id: user.id, role: user.role, companyId: user.companyId });
 
       res.json({ success: true, user });
     } catch (err: any) {

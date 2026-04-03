@@ -282,6 +282,20 @@ export const PassService = {
         return { success: false, message: "You can only cancel passes that haven't been used yet." };
       }
 
+      // Get the MR data to ensure we have the correct companyId
+      const { data: mrData, error: mrError } = await supabase
+        .from('mrs')
+        .select('company_id')
+        .eq('id', mrId)
+        .single();
+
+      // Use the company_id from the MR record, fallback to provided companyId
+      const actualCompanyId = mrData?.company_id || companyId;
+
+      if (!actualCompanyId) {
+        return { success: false, message: "MR company information not found. Please contact your administrator." };
+      }
+
       // Create cancellation request
       const requestId = crypto.randomUUID();
       const cancellationRequest: SessionCancellationRequest = {
@@ -290,7 +304,7 @@ export const PassService = {
         passId,
         applicationId,
         hospitalId,
-        companyId,
+        companyId: actualCompanyId,
         session,
         cancellationReason: reason,
         status: 'pending',
@@ -303,7 +317,7 @@ export const PassService = {
         pass_id: passId,
         application_id: applicationId,
         hospital_id: hospitalId,
-        company_id: companyId,
+        company_id: actualCompanyId,
         session: session,
         cancellation_reason: reason,
         status: 'pending',
