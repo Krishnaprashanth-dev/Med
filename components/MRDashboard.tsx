@@ -238,7 +238,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
   const [countdown, setCountdown] = useState(60);
   const [successApplication, setSuccessApplication] = useState<{hosp: string, sess: string} | null>(null);
   const [scanResult, setScanResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
-  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<{ passId: string; appId: string } | null>(null);
 
   useEffect(() => { 
     refreshData(); 
@@ -491,11 +491,26 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
     }, 600);
   };
 
-  const handleCancelAttendance = async (applicationId: string) => {
+  const handleCancelAttendance = async (passId: string, applicationId: string) => {
     setConfirmCancelId(null);
     setLoading(true);
     try {
-      const result = await storageService.cancelPassAndPickNext(applicationId);
+      const pass = passes.find(p => p.id === passId);
+      if (!pass) {
+        showFeedback("Pass not found.", "error");
+        return;
+      }
+
+      const result = await storageService.requestCancellation(
+        user.id,
+        passId,
+        applicationId,
+        pass.hospitalId,
+        user.companyId || '',
+        pass.session,
+        'MR unable to attend the session'
+      );
+
       if (result.success) {
         showFeedback(result.message, "success");
         await refreshData();
@@ -503,8 +518,8 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
         showFeedback(result.message, "error");
       }
     } catch (err) {
-      console.error("Cancel Attendance Error:", err);
-      showFeedback("Failed to cancel attendance.", "error");
+      console.error("Request Cancellation Error:", err);
+      showFeedback("Failed to submit cancellation request.", "error");
     } finally {
       setLoading(false);
     }
@@ -848,7 +863,12 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                       )}
 
                       <button 
-                        onClick={() => setConfirmCancelId(p.id)}
+                        onClick={() => {
+                          const app = apps.find(a => a.hospitalId === p.hospitalId && a.session === p.session && a.applicationDate === p.passDate && a.status === 'selected');
+                          if (app) {
+                            setConfirmCancelId({ passId: p.id, appId: app.id });
+                          }
+                        }}
                         disabled={loading}
                         className="w-full mt-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100 flex items-center justify-center gap-2"
                       >
@@ -1024,9 +1044,9 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertCircle className="h-10 w-10 text-red-600" />
             </div>
-            <h3 className="text-2xl font-black text-slate-800 tracking-tight">Cancel Attendance?</h3>
+            <h3 className="text-2xl font-black text-slate-800 tracking-tight">Cancel Session Request?</h3>
             <p className="text-slate-500 text-sm mt-2 font-medium leading-relaxed">
-              Are you sure you want to cancel your attendance? This will allow the next candidate on the waiting list to attend.
+              Submit a cancellation request to your company. If approved, the next candidate from the waiting list will attend this session.
             </p>
             <div className="flex gap-4 mt-8">
               <button 
@@ -1036,10 +1056,10 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                 No, Keep it
               </button>
               <button 
-                onClick={() => handleCancelAttendance(confirmCancelId)}
+                onClick={() => confirmCancelId && handleCancelAttendance(confirmCancelId.passId, confirmCancelId.appId)}
                 className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-red-700 transition-all active:scale-95"
               >
-                Yes, Cancel
+                Yes, Request
               </button>
             </div>
           </div>

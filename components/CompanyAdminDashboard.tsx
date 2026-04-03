@@ -3,10 +3,10 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { 
   UserPlus, Search, Briefcase, Mail, Phone, CreditCard, X, Edit3, Trash2, Power, 
   User, ShieldCheck, Activity, Users, Plus, Key, BarChart3, Clock, CheckCircle2, 
-  Image as ImageIcon, Upload, Calendar, MapPin, DollarSign, Save, Copy, Check, AlertCircle, ArrowRight
+  Image as ImageIcon, Upload, Calendar, MapPin, DollarSign, Save, Copy, Check, AlertCircle, ArrowRight, XCircle, CheckCircle
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
-import { MedicalRep, PharmaCompany, AuthUser, PassApplication, IssuedPass } from '../types';
+import { MedicalRep, PharmaCompany, AuthUser, PassApplication, IssuedPass, SessionCancellationRequest } from '../types';
 import { FeedbackContext } from '../App';
 
 interface CompanyAdminDashboardProps {
@@ -19,8 +19,9 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
   const [mrs, setMrs] = useState<MedicalRep[]>([]);
   const [allApps, setAllApps] = useState<PassApplication[]>([]);
   const [allPasses, setAllPasses] = useState<IssuedPass[]>([]);
+  const [cancellationRequests, setCancellationRequests] = useState<SessionCancellationRequest[]>([]);
   const [company, setCompany] = useState<PharmaCompany | null>(null);
-  const [activeTab, setActiveTab] = useState<'staff' | 'profile'>('staff');
+  const [activeTab, setActiveTab] = useState<'staff' | 'profile' | 'cancellations'>('staff');
   const [profileTab, setProfileTab] = useState<'info' | 'security'>('info');
   const [searchTerm, setSearchTerm] = useState('');
   const [passwordData, setPasswordData] = useState({ new: '', confirm: '' });
@@ -45,6 +46,10 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
       setEditingProfile(myCompany);
       const allMRs = await storageService.getMRs();
       setMrs(allMRs.filter(m => m.companyName === myCompany.name));
+      
+      // Fetch cancellation requests for this company
+      const requests = await storageService.getCancellationRequests({ companyId: myCompany.id });
+      setCancellationRequests(requests);
     }
     setAllApps(await storageService.getApplications());
     setAllPasses(await storageService.getPasses());
@@ -202,6 +207,42 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
     return { visits: mrPasses.length };
   };
 
+  const handleApproveCancellation = async (requestId: string) => {
+    setIsSaving(true);
+    try {
+      const result = await storageService.approveCancellation(requestId, user.id);
+      if (result.success) {
+        showFeedback(result.message, "success");
+        await refreshData();
+      } else {
+        showFeedback(result.message, "error");
+      }
+    } catch (err) {
+      console.error("Approve Cancellation Error:", err);
+      showFeedback("Failed to approve cancellation.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRejectCancellation = async (requestId: string) => {
+    setIsSaving(true);
+    try {
+      const result = await storageService.rejectCancellation(requestId, user.id);
+      if (result.success) {
+        showFeedback(result.message, "success");
+        await refreshData();
+      } else {
+        showFeedback(result.message, "error");
+      }
+    } catch (err) {
+      console.error("Reject Cancellation Error:", err);
+      showFeedback("Failed to reject cancellation.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const filteredMRs = mrs.filter(m => 
     m.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
     m.loginId.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -212,6 +253,7 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
     <div className="space-y-6">
       <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm w-fit gap-1 overflow-x-auto max-w-full">
         <button onClick={() => setActiveTab('staff')} className={`px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'staff' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Users className="h-4 w-4" /> My Staff</button>
+        <button onClick={() => setActiveTab('cancellations')} className={`px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'cancellations' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><XCircle className="h-4 w-4" /> Cancellations {cancellationRequests.filter(r => r.status === 'pending').length > 0 && <span className="ml-1 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-black">{cancellationRequests.filter(r => r.status === 'pending').length}</span>}</button>
         <button onClick={() => setActiveTab('profile')} className={`px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'profile' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><User className="h-4 w-4" /> Company Profile</button>
       </div>
 
@@ -269,6 +311,100 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
             )}
           </div>
         </div>
+      )}
+
+      {activeTab === 'cancellations' && (
+        <section className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="p-6 border-b border-slate-50">
+            <div className="flex items-center gap-3 mb-2">
+              <XCircle className="h-6 w-6 text-red-600" />
+              <h3 className="font-black text-slate-800 text-lg">Session Cancellation Requests</h3>
+            </div>
+            <p className="text-xs text-slate-400 font-bold mt-1">Review and approve/reject cancellation requests from your MRs</p>
+          </div>
+
+          <div className="divide-y divide-slate-50">
+            {cancellationRequests.length === 0 ? (
+              <div className="p-20 text-center opacity-30">
+                <CheckCircle className="h-12 w-12 text-slate-200 mx-auto mb-4" />
+                <p className="text-sm font-black text-slate-400 uppercase tracking-widest">No cancellation requests</p>
+              </div>
+            ) : (
+              cancellationRequests.map(request => {
+                const mr = mrs.find(m => m.id === request.mrId);
+                const hospital = allApps.find(a => a.id === request.applicationId)?.hospitalId;
+                
+                return (
+                  <div key={request.id} className="p-6 hover:bg-slate-50/50 transition-colors group">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-red-100 transition-colors">
+                          <User className="h-6 w-6 text-slate-400 group-hover:text-red-600 transition-colors" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-black text-slate-800">{mr?.fullName || 'Unknown MR'}</h4>
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            <span className="text-[10px] font-black text-slate-400 uppercase bg-slate-100 px-2 py-1 rounded">
+                              {mr?.mrId || 'N/A'}
+                            </span>
+                            <span className="text-[10px] font-black text-indigo-600 uppercase bg-indigo-50 px-2 py-1 rounded">
+                              {request.session}
+                            </span>
+                            <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${
+                              request.status === 'pending' ? 'bg-amber-50 text-amber-700' :
+                              request.status === 'approved' ? 'bg-green-50 text-green-700' :
+                              'bg-red-50 text-red-700'
+                            }`}>
+                              {request.status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right text-xs text-slate-400 font-bold">
+                        <div>Requested: {new Date(request.requestedAt).toLocaleDateString()}</div>
+                        {request.respondedAt && <div className="text-slate-500">Responded: {new Date(request.respondedAt).toLocaleDateString()}</div>}
+                      </div>
+                    </div>
+
+                    {request.cancellationReason && (
+                      <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Cancellation Reason</p>
+                        <p className="text-sm text-slate-700">{request.cancellationReason}</p>
+                      </div>
+                    )}
+
+                    {request.status === 'pending' && (
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => handleApproveCancellation(request.id)}
+                          disabled={isSaving}
+                          className="flex-1 py-3 bg-green-50 text-green-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-100 transition-all border border-green-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          <CheckCircle className="h-4 w-4" /> Approve Cancellation
+                        </button>
+                        <button
+                          onClick={() => handleRejectCancellation(request.id)}
+                          disabled={isSaving}
+                          className="flex-1 py-3 bg-red-50 text-red-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          <XCircle className="h-4 w-4" /> Reject Request
+                        </button>
+                      </div>
+                    )}
+
+                    {request.status !== 'pending' && (
+                      <div className="p-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-center bg-slate-50 border border-slate-100 text-slate-600">
+                        {request.status === 'approved' ? '✓ Cancellation Approved - Next waiting list candidate promoted' : '✗ Request Rejected - Pass remains valid'}
+                        {request.responseReason && <p className="text-slate-500 mt-1">{request.responseReason}</p>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
       )}
 
       {activeTab === 'staff' && (
