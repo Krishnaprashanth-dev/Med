@@ -149,7 +149,7 @@ export const PassService = {
       const { error: deletePassError } = await supabase
         .from('passes')
         .delete()
-        .eq('id', applicationId); 
+        .eq('application_id', applicationId); 
 
       if (deletePassError) {
           console.warn("Could not delete pass, it might not exist yet:", deletePassError);
