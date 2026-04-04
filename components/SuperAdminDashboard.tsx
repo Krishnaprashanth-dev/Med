@@ -691,6 +691,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">SLCPI ID</p><p className="font-bold text-slate-700 font-mono text-xs">{selectedMR.slcpiId || 'N/A'}</p></div>
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Mobile</p><p className="font-bold text-slate-700 text-sm">{selectedMR.mobileNumber}</p></div>
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">SLCPI Expiry</p><p className="font-bold text-slate-700 text-sm">{selectedMR.slcpiExpiry || 'N/A'}</p></div>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 col-span-2"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Email Address</p><p className="font-bold text-slate-700 text-sm">{selectedMR.email || 'N/A'}</p></div>              
                </div>
 
                {selectedMR.slcpiPhoto && (
