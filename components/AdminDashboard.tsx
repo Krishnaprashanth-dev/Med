@@ -756,6 +756,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                <div className="grid grid-cols-2 gap-4 text-left">
                   <div className="p-3 bg-slate-50 rounded-xl border"><p className="text-[10px] font-black text-slate-400 uppercase">Official ID</p><p className="font-bold text-slate-700">{selectedMR.mrId}</p></div>
                   <div className="p-3 bg-slate-50 rounded-xl border"><p className="text-[10px] font-black text-slate-400 uppercase">Mobile</p><p className="font-bold text-slate-700">{selectedMR.mobileNumber}</p></div>
+                  <div className="p-3 bg-slate-50 rounded-xl border col-span-2"><p className="text-[10px] font-black text-slate-400 uppercase">Email Address</p><p className="font-bold text-slate-700">{selectedMR.email || 'N/A'}</p></div>
                </div>
                <button onClick={() => setSelectedMR(null)} className="w-full bg-slate-800 text-white font-black py-4 rounded-2xl">CLOSE PROFILE</button>
             </div>
