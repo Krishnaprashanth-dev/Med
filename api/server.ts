@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import { emailService } from './emailService.js';
 
 dotenv.config();
 
