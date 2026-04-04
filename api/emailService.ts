@@ -5,6 +5,21 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+let resendClient: Resend | null = null;
+
+const getResend = () => {
+  if (!resendClient) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.warn('[Email Service] RESEND_API_KEY is missing. Email notifications will be skipped.');
+      return null;
+    }
+    resendClient = new Resend(apiKey);
+  }
+  return resendClient;
+};
+
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://mbxbefmldndavkjftlzv.supabase.co';
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_pN_bO_hvI8eq2Bt9lHN6tQ_r0irnJ6b';
