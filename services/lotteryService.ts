@@ -181,7 +181,25 @@ export const lotteryService = {
     await storageService.saveApplications([...updatedApps, ...cooldownUpdated]);
     await storageService.savePasses(newPasses);
     await storageService.log('SYSTEM', 'LOTTERY_RUN', `Hospital: ${hosp.name}, Session: ${session}, Passes: ${selected.length}`);
-
+  
+    // Trigger Email Notifications
+    if (selected.length > 0) {
+      try {
+        fetch('/api/notify-selection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mrIds: selected.map(s => s.mrId),
+            hospitalId,
+            session,
+            date: today
+          })
+        }).catch(err => console.error("Notification trigger error:", err));
+      } catch (err) {
+        console.error("Notification error:", err);
+      }
+    }
+    
     return { 
       success: true, 
       count: selected.length, 
