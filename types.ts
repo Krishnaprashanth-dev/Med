@@ -1,6 +1,6 @@
 
 export type MRStatus = 'active' | 'suspended';
-export type ApplicationStatus = 'applied' | 'selected' | 'waitlisted' | 'rejected';
+export type ApplicationStatus = 'applied' | 'selected' | 'waitlisted' | 'rejected' | 'cancelled';
 export type EntryStatus = 'not_entered' | 'entered' | 'expired' | 'ended';
 export type UserRole = 'MR' | 'ADMIN' | 'SECURITY' | 'SUPER_ADMIN' | 'COMPANY_ADMIN';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
