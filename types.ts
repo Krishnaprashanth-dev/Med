@@ -5,6 +5,7 @@ export type EntryStatus = 'not_entered' | 'entered' | 'expired' | 'ended';
 export type UserRole = 'MR' | 'ADMIN' | 'SECURITY' | 'SUPER_ADMIN' | 'COMPANY_ADMIN';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 export type SessionType = 'MORNING' | 'EVENING' | 'FULL_DAY';
+export type CancellationRequestStatus = 'pending' | 'approved' | 'rejected';
 
 export interface MedicalRep {
   id: string;
@@ -71,6 +72,7 @@ export interface PassApplication {
 
 export interface IssuedPass {
   id: string;
+  applicationId: string;
   mrId: string;
   hospitalId: string;
   session: SessionType;
@@ -115,6 +117,23 @@ export interface AuditLog {
   action: string;
   details: string;
   timestamp: string;
+}
+
+export interface SessionCancellationRequest {
+  id: string;
+  applicationId: string;
+  passId: string;
+  mrId: string;
+  companyId: string;
+  hospitalId: string;
+  session: SessionType;
+  date: string;
+  status: CancellationRequestStatus;
+  cancellationReason: string;
+  responseReason?: string;
+  requestedAt: string;
+  respondedAt?: string;
+  respondedBy?: string;
 }
 
 export interface AuthUser {
