@@ -444,6 +444,22 @@ export const PassService = {
 
       if (createPassError) throw createPassError;
 
+      // 9. Trigger Email Notification for the new candidate
+      try {
+        fetch('/api/notify-replacement', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mrId: nextApp.mr_id,
+            hospitalId: nextApp.hospital_id,
+            session: nextApp.session,
+            date: nextApp.application_date
+          })
+        }).catch(err => console.error("Replacement notification trigger error:", err));
+      } catch (err) {
+        console.error("Replacement notification error:", err);
+      }
+
       return { success: true, message: "Cancellation approved. Next candidate from waiting list promoted successfully." };
     } catch (err) {
       console.error("Approve Cancellation Error:", err);
