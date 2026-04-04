@@ -15,7 +15,8 @@ export const MRService = {
         slcpi_id, 
         slcpi_photo, 
         slcpi_expiry, 
-        status, 
+        status,
+        email,
         created_at,
         company_id,
         pharma_companies (name)
@@ -23,24 +24,28 @@ export const MRService = {
     
     if (error) throw error;
 
-    const { data: profiles } = await supabase.from('profiles').select('id, full_name').eq('role', 'MR');
-    const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+    const { data: profiles } = await supabase.from('profiles').select('id, full_name, email').eq('role', 'MR');
+    const profileMap = new Map((profiles || []).map(p => [p.id, { fullName: p.full_name, email: p.email }]));
 
-    return (data || []).map(m => ({
-      id: m.id,
-      fullName: profileMap.get(m.id) || '',
-      companyName: (m.pharma_companies as any)?.name || '',
-      companyId: m.company_id,
-      mrId: m.mr_code,
-      loginId: m.mobile_number, // This is the contact number in mrs table, but we should probably fetch from profiles
-      mobileNumber: m.mobile_number,
-      identificationNumber: m.identification_number,
-      slcpiId: m.slcpi_id,
-      slcpiPhoto: m.slcpi_photo,
-      slcpiExpiry: m.slcpi_expiry,
-      status: m.status as any,
-      createdAt: m.created_at
-    }));
+    return (data || []).map(m => {
+      const profile = profileMap.get(m.id);
+      return {
+        id: m.id,
+        fullName: profile?.fullName || '',
+        email: m.email || profile?.email || '',
+        companyName: (m.pharma_companies as any)?.name || '',
+        companyId: m.company_id,
+        mrId: m.mr_code,
+        loginId: m.mobile_number, // This is the contact number in mrs table, but we should probably fetch from profiles
+        mobileNumber: m.mobile_number,
+        identificationNumber: m.identification_number,
+        slcpiId: m.slcpi_id,
+        slcpiPhoto: m.slcpi_photo,
+        slcpiExpiry: m.slcpi_expiry,
+        status: m.status as any,
+        createdAt: m.created_at
+      };
+    });
   },
 
   saveMRs: async (mrs: MedicalRep[]): Promise<MedicalRep[]> => {
@@ -58,6 +63,7 @@ export const MRService = {
       const profileUpdate: any = {
         id: targetId,
         full_name: mr.fullName,
+        email: mr.email,
         role: 'MR',
         // CRITICAL: Use mobileNumber for the mobile_number column in profiles table
         // because that's what the login page uses for authentication for MRs.
@@ -87,6 +93,7 @@ export const MRService = {
           slcpi_photo: mr.slcpiPhoto,
           slcpi_expiry: mr.slcpiExpiry,
           status: mr.status,
+          email: mr.email,
           company_id: mr.companyId
         }).select(`
           *,
@@ -102,6 +109,7 @@ export const MRService = {
           results.push({
             id: mrData.id,
             fullName: profileData.full_name,
+            email: mrData.email || profileData.email,
             companyName: (mrData.pharma_companies as any)?.name || '',
             companyId: mrData.company_id,
             mrId: mrData.mr_code,
