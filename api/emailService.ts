@@ -17,7 +17,7 @@ export const emailService = {
       // 1. Fetch MR details
       const { data: mr, error: mrError } = await supabase
         .from('mrs')
-        .select('*, profiles(email, full_name)')
+        .select('*, profiles(full_name)')
         .eq('id', mrId)
         .single();
 
@@ -26,7 +26,7 @@ export const emailService = {
         return { success: false, error: 'MR not found' };
       }
 
-      const mrEmail = mr.profiles?.email;
+      const mrEmail = mr.email;
       const mrName = mr.profiles?.full_name;
 
       if (!mrEmail) {
