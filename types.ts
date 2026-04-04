@@ -9,7 +9,7 @@ export type SessionType = 'MORNING' | 'EVENING' | 'FULL_DAY';
 export interface MedicalRep {
   id: string;
   fullName: string;
-  email?: string;
+  email: string;
   companyName: string; 
   companyId?: string; // ID of the pharma company
   mrId: string; // The system-wide official MR ID
