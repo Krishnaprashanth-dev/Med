@@ -155,6 +155,7 @@ export const lotteryService = {
     // and caused Supabase to reject the insert with a 400 "invalid input syntax for type uuid" error.
     const newPasses: IssuedPass[] = selected.map((s) => ({
       id: crypto.randomUUID(),
+      applicationId: s.id,
       mrId: s.mrId,
       hospitalId: s.hospitalId,
       session,
