@@ -81,8 +81,8 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
 
   const handleSaveMR = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingMR?.fullName || !editingMR?.mobileNumber || !editingMR?.loginId || !editingMR?.identificationNumber || !editingMR?.slcpiId || !editingMR?.slcpiExpiry || !company) {
-      showFeedback("Required fields missing. Please fill all fields including SLCPI details.", "error");
+    if (!editingMR?.fullName || !editingMR?.email || !editingMR?.mobileNumber || !editingMR?.loginId || !editingMR?.identificationNumber || !editingMR?.slcpiId || !editingMR?.slcpiExpiry || !company) {
+      showFeedback("Required fields missing. Please fill all fields including email and SLCPI details.", "error");
       return;
     }
     
@@ -118,6 +118,7 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
     const mrData: MedicalRep = {
       ...(editingMR.id ? { id: editingMR.id } : {}),
       fullName: editingMR.fullName,
+      email: editingMR.email,
       companyName: company.name,
       companyId: company.id, // CRITICAL: Link to the company admin's company
       mrId: editingMR.mrId || `SLCPI-${Math.floor(10000 + Math.random() * 90000)}`,
@@ -663,6 +664,7 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Personal Identity</p>
                     </div>
                     <input required type="text" value={editingMR?.fullName || ''} onChange={e => setEditingMR({...editingMR, fullName: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Full Legal Name" />
+                    <input required type="email" value={editingMR?.email || ''} onChange={e => setEditingMR({...editingMR, email: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Email Address (for notifications)" />
                     <div className="grid grid-cols-2 gap-4">
                       <input required type="text" value={editingMR?.mobileNumber || ''} onChange={e => setEditingMR({...editingMR, mobileNumber: e.target.value, loginId: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Contact Mobile" />
                       <input required type="text" value={editingMR?.identificationNumber || ''} onChange={e => setEditingMR({...editingMR, identificationNumber: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="National ID / NIC" />
