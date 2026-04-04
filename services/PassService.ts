@@ -77,6 +77,7 @@ export const PassService = {
     const { error } = await supabase.from('passes').upsert(
       passes.map(p => ({
         ...(p.id && isUUID(p.id) ? { id: p.id } : {}),
+        applicationId: p.application_id,
         mr_id: p.mrId,
         hospital_id: p.hospitalId,
         session: p.session,
@@ -182,8 +183,8 @@ export const PassService = {
 
       // 6. Create a new pass for the next candidate
       const newPass = {
-        id: nextApp.id,
-        mr_id: nextApp.mr_id,
+        id: crypto.randomUUID(),
+        application_id: nextApp.id,
         hospital_id: nextApp.hospital_id,
         session: nextApp.session,
         pass_date: nextApp.application_date,
@@ -218,6 +219,112 @@ export const PassService = {
     } catch (err) {
       console.error("Cancel Pass Error:", err);
       return { success: false, message: err instanceof Error ? err.message : "An unknown error occurred." };
+    }
+  },
+
+   requestCancellation: async (data: { 
+    applicationId: string; 
+    passId: string; 
+    mrId: string; 
+    companyId: string; 
+    hospitalId: string; 
+    session: SessionType; 
+    date: string; 
+    reason: string 
+  }): Promise<{ success: boolean; message: string }> => {
+    try {
+      const { error } = await supabase.from('cancellation_requests').insert({
+        application_id: data.applicationId,
+        pass_id: data.passId,
+        mr_id: data.mrId,
+        company_id: data.companyId,
+        hospital_id: data.hospitalId,
+        session: data.session,
+        date: data.date,
+        status: 'pending',
+        cancellation_reason: data.reason,
+        requested_at: new Date().toISOString()
+      });
+
+      if (error) throw error;
+      return { success: true, message: "Cancellation request submitted to your company admin." };
+    } catch (err) {
+          console.error("Request Cancellation Error:", err);
+      return { success: false, message: "Failed to submit cancellation request." };
+    }
+  },
+
+  getCancellationRequests: async (filters?: { companyId?: string; mrId?: string; status?: string }): Promise<SessionCancellationRequest[]> => {
+    let query = supabase.from('cancellation_requests').select('*');
+    if (filters?.companyId) query = query.eq('company_id', filters.companyId);
+    if (filters?.mrId) query = query.eq('mr_id', filters.mrId);
+    if (filters?.status) query = query.eq('status', filters.status);
+
+    const { data, error } = await query.order('requested_at', { ascending: false });
+    if (error) throw error;
+
+    return (data || []).map(r => ({
+      id: r.id,
+      applicationId: r.application_id,
+      passId: r.pass_id,
+      mrId: r.mr_id,
+      companyId: r.company_id,
+      hospitalId: r.hospital_id,
+      session: r.session,
+      date: r.date,
+      status: r.status,
+      cancellationReason: r.cancellation_reason,
+      responseReason: r.response_reason,
+      requestedAt: r.requested_at,
+      respondedAt: r.responded_at,
+      respondedBy: r.responded_by
+    }));
+  },
+
+  approveCancellation: async (requestId: string, adminId: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      // 1. Get request details
+      const { data: request, error: getReqError } = await supabase
+        .from('cancellation_requests')
+        .select('*')
+        .eq('id', requestId)
+        .single();
+
+      if (getReqError || !request) throw new Error("Request not found");
+
+      // 2. Perform the actual cancellation and replacement
+      const result = await PassService.cancelPassAndPickNext(request.application_id);
+      
+      if (result.success) {
+        // 3. Update request status
+        await supabase.from('cancellation_requests').update({
+          status: 'approved',
+          responded_at: new Date().toISOString(),
+          responded_by: adminId
+        }).eq('id', requestId);
+      }
+
+      return result;
+    } catch (err) {
+      console.error("Approve Cancellation Error:", err);
+      return { success: false, message: "Failed to approve cancellation." };
+    }
+  },
+
+  rejectCancellation: async (requestId: string, adminId: string, reason?: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const { error } = await supabase.from('cancellation_requests').update({
+        status: 'rejected',
+        response_reason: reason,
+        responded_at: new Date().toISOString(),
+        responded_by: adminId
+      }).eq('id', requestId);
+
+      if (error) throw error;
+      return { success: true, message: "Cancellation request rejected." };
+    } catch (err) {
+      console.error("Reject Cancellation Error:", err);
+      return { success: false, message: "Failed to reject cancellation." };
     }
   },
 };
