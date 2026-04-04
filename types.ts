@@ -80,22 +80,6 @@ export interface IssuedPass {
   entryStatus: EntryStatus;
 }
 
-export interface SessionCancellationRequest {
-  id: string;
-  mrId: string;
-  passId: string;
-  applicationId: string;
-  hospitalId: string;
-  companyId: string;
-  session: SessionType;
-  cancellationReason?: string;
-  status: 'pending' | 'approved' | 'rejected';
-  requestedAt: string;
-  respondedAt?: string;
-  respondedBy?: string; // Admin ID who approved/rejected
-  responseReason?: string;
-}
-
 export interface PharmaCompany {
   id: string;
   name: string;
