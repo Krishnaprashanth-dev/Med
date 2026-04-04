@@ -36,6 +36,37 @@ async function startServer() {
     res.json({ status: 'ok', environment: process.env.NODE_ENV, vercel: !!process.env.VERCEL });
   });
 
+// Notification Endpoints
+  app.post('/api/notify-selection', async (req, res) => {
+    const { mrIds, hospitalId, session, date } = req.body;
+    
+    if (!mrIds || !Array.isArray(mrIds) || !hospitalId || !session || !date) {
+      return res.status(400).json({ success: false, message: 'Missing required parameters.' });
+    }
+
+    console.log(`[Notification] Sending selection emails for ${mrIds.length} MRs at ${hospitalId} - ${session}`);
+
+    const results = await Promise.all(
+      mrIds.map(mrId => emailService.sendLotterySelectionEmail(mrId, hospitalId, session, date))
+    );
+
+    const successCount = results.filter(r => r.success).length;
+    res.json({ success: true, message: `Sent ${successCount}/${mrIds.length} emails.` });
+  });
+
+  app.post('/api/notify-replacement', async (req, res) => {
+    const { mrId, hospitalId, session, date } = req.body;
+    
+    if (!mrId || !hospitalId || !session || !date) {
+      return res.status(400).json({ success: false, message: 'Missing required parameters.' });
+    }
+
+    console.log(`[Notification] Sending replacement email for MR ${mrId} at ${hospitalId} - ${session}`);
+
+    const result = await emailService.sendLotterySelectionEmail(mrId, hospitalId, session, date);
+    res.json(result);
+  });
+  
   // API Routes
   app.post('/api/auth/login', async (req, res) => {
     let { mobile, password, role } = req.body;
