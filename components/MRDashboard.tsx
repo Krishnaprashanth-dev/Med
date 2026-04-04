@@ -491,35 +491,11 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
     }, 600);
   };
 
-  const handleCancelAttendance = async (passId: string, applicationId: string) => {
+    const handleCancelAttendance = async (applicationId: string) => {
     setConfirmCancelId(null);
     setLoading(true);
     try {
-      const pass = passes.find(p => p.id === passId);
-      if (!pass) {
-        showFeedback("Pass not found.", "error");
-        return;
-      }
-
-      console.log('[Cancellation Request] Submitting with:', {
-        mrId: user.id,
-        passId,
-        applicationId,
-        hospitalId: pass.hospitalId,
-        companyId: user.companyId,
-        session: pass.session
-      });
-
-      const result = await storageService.requestCancellation(
-        user.id,
-        passId,
-        applicationId,
-        pass.hospitalId,
-        user.companyId || '',
-        pass.session,
-        'MR unable to attend the session'
-      );
-
+      const result = await storageService.cancelPassAndPickNext(applicationId);
       if (result.success) {
         showFeedback(result.message, "success");
         await refreshData();
@@ -527,8 +503,8 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
         showFeedback(result.message, "error");
       }
     } catch (err) {
-      console.error("Request Cancellation Error:", err);
-      showFeedback("Failed to submit cancellation request.", "error");
+      console.error("Cancel Attendance Error:", err);
+      showFeedback("Failed to cancel attendance.", "error");
     } finally {
       setLoading(false);
     }
@@ -872,12 +848,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                       )}
 
                       <button 
-                        onClick={() => {
-                          const app = apps.find(a => a.hospitalId === p.hospitalId && a.session === p.session && a.applicationDate === p.passDate && a.status === 'selected');
-                          if (app) {
-                            setConfirmCancelId({ passId: p.id, appId: app.id });
-                          }
-                        }}
+                        onClick={() => setConfirmCancelId(p.id)}
                         disabled={loading}
                         className="w-full mt-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100 flex items-center justify-center gap-2"
                       >
