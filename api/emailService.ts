@@ -19,8 +19,6 @@ const getResend = () => {
   return resendClient;
 };
 
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://mbxbefmldndavkjftlzv.supabase.co';
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_pN_bO_hvI8eq2Bt9lHN6tQ_r0irnJ6b';
 
@@ -65,7 +63,12 @@ export const emailService = {
       const sessionWindow = hospital.session_windows?.[session] || { start: 'N/A', end: 'N/A' };
 
       // 3. Send Email
-      const { data, error } = await resend.emails.send({
+      const resendClient = getResend();
+      if (!resendClient) {
+        return { success: false, error: 'Email service not configured' };
+      }
+
+      const { data, error } = await resendClient.emails.send({
         from: 'MedPass <notifications@medpass.system>',
         to: [mrEmail],
         subject: `Lottery Selection: ${hospital.name} - ${session} Session`,

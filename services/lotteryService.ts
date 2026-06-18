@@ -1,6 +1,7 @@
 import { storageService } from './storageService';
 import { SessionType, IssuedPass, PassApplication } from '../types';
 import { PRIORITY_WEIGHTS } from '../constants';
+import { ScoringService } from './ScoringService';
 
 export const lotteryService = {
   /**
@@ -36,9 +37,6 @@ export const lotteryService = {
     return score;
   },
 
-import { ScoringService } from './ScoringService';
-
-export const lotteryService = {
   /**
    * Run the lottery with new scoring system that includes credit tie-breaker
    */
@@ -79,15 +77,12 @@ export const lotteryService = {
       return !hasRecent;
     });
 
-    // ✅ FIX: Track apps removed by cooldown — they need a terminal status too
     // Track apps removed by cooldown
     const cooldownRejectedApps = eligibleApps.filter(
       app => !filteredApps.find(f => f.id === app.id)
     );
 
     if (filteredApps.length === 0) {
-      // ✅ FIX: Even if everyone is cooldown-rejected, mark them all as waitlisted
-      // so they don't stay stuck as 'applied' and re-appear in the MR dashboard
       if (cooldownRejectedApps.length > 0) {
         const cooldownUpdated = cooldownRejectedApps.map(app => ({
           ...app,
@@ -97,19 +92,6 @@ export const lotteryService = {
       }
       return { success: false, count: 0, message: "No eligible applications after cooldown check." };
     }
-
-    // Calculate Scores
-    const allPassesForPriority = await storageService.getPasses({ mrId: filteredApps.map(a => a.mrId) });
-    const scored = filteredApps.map(a => ({ 
-      ...a, 
-      priorityScore: lotteryService.calculatePriority(a.mrId, allPassesForPriority) 
-    }));
-    
-    // Sort by priority (Highest score first)
-    scored.sort((a, b) => b.priorityScore - a.priorityScore);
-    // Get scores for all applicants using new ScoringService
-    const allMRScores = await ScoringService.getAllMRScores();
-    const scoreMap = new Map(allMRScores.map(s => [s.mrId, s]));
 
     // Enrich applications with scores and perform resets if needed
     const scored = await Promise.all(
@@ -178,12 +160,7 @@ export const lotteryService = {
       selected.forEach(s => usedApplicants.add(s.id));
     }
 
-    // Create New Passes
-    // ✅ FIX: Use crypto.randomUUID() to generate a valid UUID for each pass.
-    // Previously used `PASS-${s.id}` which produced an invalid UUID string
-    // and caused Supabase to reject the insert with a 400 "invalid input syntax for type uuid" error.
     // Handle tie-breaking: when multiple MRs have same score and one is selected
-    // The selected one gets credit = 0, others with same score get credit += 1
     const nonSelectedMrIds: string[] = [];
     scored.forEach(app => {
       if (!usedApplicants.has(app.id) && selected.some(s => s.score.priorityScore === app.score.priorityScore)) {
@@ -213,13 +190,6 @@ export const lotteryService = {
 
     // Mark scored apps as selected or waitlisted
     const updatedApps = scored.map(s => {
-      if (usedApplicants.has(s.id)) return { ...s, status: 'selected' as const };
-      return { ...s, status: 'waitlisted' as const };
-    });
-
-    // ✅ FIX: Also mark cooldown-rejected apps as waitlisted so they don't stay
-    // stuck as 'applied' — which caused the session to re-appear in MR dashboard
-    // and prevented the permit window from showing after the lottery spin.
       if (usedApplicants.has(s.id)) {
         return { ...s, status: 'selected' as const, score: undefined };
       }
@@ -254,19 +224,11 @@ export const lotteryService = {
       }
     }
     
-    return { 
-      success: true, 
-      count: selected.length, 
-      message: `Successfully issued ${selected.length} passes.`,
-      selectedMrIds: selected.map(s => s.mrId)
-    };
-  }
-
     return {
       success: true,
       count: selected.length,
-      message: `Successfully selected ${selected.length} applicants`,
+      message: `Successfully selected ${selected.length} applicants.`,
       selectedMrIds: selected.map(s => s.mrId)
     };
-  },
+  }
 };
