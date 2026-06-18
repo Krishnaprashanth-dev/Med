@@ -266,6 +266,64 @@ async function startServer() {
     }
   });
 
+  // Batch score reset endpoint (runs daily or manually)
+  app.all('/api/admin/batch-reset-scores', async (req, res) => {
+    try {
+      console.log(`[Batch Reset] Starting score reset check for all MRs...`);
+      
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('role', 'MR');
+
+      if (profileError) throw profileError;
+
+      const today = new Date().toLocaleDateString('en-CA');
+      const now = new Date();
+      let resetCount = 0;
+
+      for (const mr of (profiles || [])) {
+        const { data: apps, error: appError } = await supabase
+          .from('applications')
+          .select('*')
+          .eq('mr_id', mr.id)
+          .order('application_date', { ascending: false })
+          .limit(1);
+
+        if (appError) throw appError;
+
+        if (apps && apps.length > 0) {
+          const app = apps[0];
+          const lastReset = new Date(app.application_date);
+          const daysSinceReset = Math.floor((now.getTime() - lastReset.getTime()) / (1000 * 3600 * 24));
+
+          if (daysSinceReset >= 14) {
+            const priorityScore = app.priority_score || 0;
+            const newScore = Math.floor(priorityScore / 4);
+
+            const { error: updateError } = await supabase
+              .from('applications')
+              .update({
+                priority_score: newScore,
+                credit: 0,
+                application_date: today
+              })
+              .eq('id', app.id);
+
+            if (updateError) throw updateError;
+            resetCount++;
+            console.log(`[Batch Reset] Reset MR ${mr.full_name} from ${priorityScore} to ${newScore}`);
+          }
+        }
+      }
+
+      res.json({ success: true, message: `Batch score check complete. Reset ${resetCount} of ${profiles?.length || 0} MRs.` });
+    } catch (err: any) {
+      console.error('[Batch Reset Error]', err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     try {

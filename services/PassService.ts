@@ -220,6 +220,22 @@ export const PassService = {
         console.error("Replacement notification error:", err);
       }
 
+      // Trigger System Notification for the new candidate
+      try {
+        const { data: hosp } = await supabase.from('hospitals').select('name').eq('id', nextApp.hospital_id).single();
+        const hospName = hosp?.name || 'Hospital';
+
+        await NotificationService.createNotification(
+          nextApp.mr_id,
+          'waitlist_promoted',
+          'Promoted from Waitlist',
+          `You have been promoted from the waitlist for the ${nextApp.session} session at ${hospName} on ${nextApp.application_date} because another representative cancelled their pass.`,
+          nextApp.id
+        );
+      } catch (notifErr) {
+        console.error("Failed to create promotion notification:", notifErr);
+      }
+
       return { success: true, message: "Application cancelled and next candidate from waiting list selected." };
     } catch (err) {
       console.error("Cancel Pass Error:", err);
@@ -238,7 +254,7 @@ export const PassService = {
     reason: string 
   }): Promise<{ success: boolean; message: string }> => {
     try {
-      const { error } = await supabase.from('cancellation_requests').insert({
+      const { data: newRequest, error } = await supabase.from('cancellation_requests').insert({
         application_id: data.applicationId,
         pass_id: data.passId,
         mr_id: data.mrId,
@@ -249,12 +265,34 @@ export const PassService = {
         status: 'pending',
         cancellation_reason: data.reason,
         requested_at: new Date().toISOString()
-      });
+      }).select().single();
 
       if (error) throw error;
+
+      try {
+        // Get hospital name
+        const { data: hosp } = await supabase.from('hospitals').select('name').eq('id', data.hospitalId).single();
+        const hospName = hosp?.name || 'Hospital';
+
+        // Get MR details
+        const { data: mr } = await supabase.from('profiles').select('full_name').eq('id', data.mrId).single();
+        const mrName = mr?.full_name || 'Medical Representative';
+
+        // Notify Company Admin (whose user ID is companyId)
+        await NotificationService.createNotification(
+          data.companyId,
+          'cancellation_request',
+          'New Cancellation Request',
+          `${mrName} requested cancellation for ${data.session} session at ${hospName} on ${data.date}.`,
+          newRequest?.id
+        );
+      } catch (notifErr) {
+        console.error("Failed to create cancellation request notification:", notifErr);
+      }
+
       return { success: true, message: "Cancellation request submitted to your company admin." };
     } catch (err) {
-          console.error("Request Cancellation Error:", err);
+      console.error("Request Cancellation Error:", err);
       return { success: false, message: "Failed to submit cancellation request." };
     }
   },
@@ -307,6 +345,22 @@ export const PassService = {
           responded_at: new Date().toISOString(),
           responded_by: adminId
         }).eq('id', requestId);
+
+        // 4. Notify MR
+        try {
+          const { data: hosp } = await supabase.from('hospitals').select('name').eq('id', request.hospital_id).single();
+          const hospName = hosp?.name || 'Hospital';
+
+          await NotificationService.createNotification(
+            request.mr_id,
+            'cancellation_accepted',
+            'Cancellation Approved',
+            `Your request to cancel your pass for ${request.session} session on ${request.date} at ${hospName} has been approved.`,
+            requestId
+          );
+        } catch (notifErr) {
+          console.error("Failed to create cancellation approved notification:", notifErr);
+        }
       }
 
       return result;
@@ -326,6 +380,26 @@ export const PassService = {
       }).eq('id', requestId);
 
       if (error) throw error;
+
+      // Notify MR
+      try {
+        const { data: request } = await supabase.from('cancellation_requests').select('*').eq('id', requestId).single();
+        if (request) {
+          const { data: hosp } = await supabase.from('hospitals').select('name').eq('id', request.hospital_id).single();
+          const hospName = hosp?.name || 'Hospital';
+
+          await NotificationService.createNotification(
+            request.mr_id,
+            'cancellation_rejected',
+            'Cancellation Request Rejected',
+            `Your request to cancel your pass for ${request.session} session on ${request.date} at ${hospName} has been rejected.${reason ? ` Reason: ${reason}` : ''}`,
+            requestId
+          );
+        }
+      } catch (notifErr) {
+        console.error("Failed to create cancellation rejected notification:", notifErr);
+      }
+
       return { success: true, message: "Cancellation request rejected." };
     } catch (err) {
       console.error("Reject Cancellation Error:", err);

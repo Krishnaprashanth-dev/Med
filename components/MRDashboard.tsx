@@ -823,31 +823,99 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                   <p className="text-sm font-black text-slate-400 uppercase tracking-widest">No notifications</p>
                 </div>
               ) : (
-                notifications.map(notif => (
-                  <div key={notif.id} className={`p-4 hover:bg-slate-50 transition-colors cursor-pointer ${!notif.read ? 'bg-indigo-50' : ''}`}>
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          {!notif.read && <div className="w-2 h-2 bg-indigo-600 rounded-full"></div>}
-                          <h4 className="font-black text-slate-800 text-sm">{notif.title}</h4>
+                notifications.map(notif => {
+                  let bgClass = 'bg-slate-50/40';
+                  let borderClass = 'border-slate-100';
+                  let iconElement = <Bell className="h-4 w-4 text-slate-500" />;
+
+                  switch (notif.type) {
+                    case 'session_selected':
+                      bgClass = 'bg-indigo-50/30';
+                      borderClass = 'border-indigo-100';
+                      iconElement = <BadgeCheck className="h-4 w-4 text-indigo-600" />;
+                      break;
+                    case 'session_waitlist':
+                      bgClass = 'bg-amber-50/30';
+                      borderClass = 'border-amber-100';
+                      iconElement = <Clock className="h-4 w-4 text-amber-600" />;
+                      break;
+                    case 'waitlist_promoted':
+                      bgClass = 'bg-emerald-50/30';
+                      borderClass = 'border-emerald-100';
+                      iconElement = <Sparkles className="h-4 w-4 text-emerald-600 animate-pulse" />;
+                      break;
+                    case 'cancellation_accepted':
+                      bgClass = 'bg-green-50/30';
+                      borderClass = 'border-green-100';
+                      iconElement = <CheckCircle2 className="h-4 w-4 text-green-600" />;
+                      break;
+                    case 'cancellation_rejected':
+                      bgClass = 'bg-red-50/30';
+                      borderClass = 'border-red-100';
+                      iconElement = <XCircle className="h-4 w-4 text-red-600" />;
+                      break;
+                  }
+
+                  return (
+                    <div 
+                      key={notif.id} 
+                      className={`p-4 hover:bg-slate-50/80 transition-all border-b ${borderClass} ${bgClass} ${
+                        !notif.read ? 'ring-1 ring-inset ring-indigo-500/10' : ''
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex gap-3 items-start flex-1">
+                          <div className="mt-0.5 p-1.5 bg-white rounded-lg shadow-sm shrink-0">
+                            {iconElement}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              {!notif.read && <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full shrink-0"></span>}
+                              <h4 className="font-black text-slate-800 text-xs leading-snug">{notif.title}</h4>
+                            </div>
+                            <p className="text-[10px] text-slate-600 leading-relaxed font-medium">{notif.message}</p>
+                            <p className="text-[8px] text-slate-400 font-bold mt-1.5">
+                              {new Date(notif.createdAt).toLocaleString()}
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-[10px] text-slate-600 leading-relaxed">{notif.message}</p>
-                        <p className="text-[9px] text-slate-400 mt-2">
-                          {new Date(notif.createdAt).toLocaleString()}
-                        </p>
+                        <div className="flex flex-col gap-2 items-end">
+                          {!notif.read && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await NotificationService.markAsRead(notif.id);
+                                  setNotifications(notifications.map(n => n.id === notif.id ? { ...n, read: true } : n));
+                                } catch (err) {
+                                  showFeedback("Failed to mark read", "error");
+                                }
+                              }}
+                              className="text-[9px] font-black uppercase text-indigo-600 hover:text-indigo-800 tracking-wider bg-white px-2 py-1 rounded shadow-sm border border-indigo-100 transition-colors"
+                            >
+                              Read
+                            </button>
+                          )}
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await NotificationService.deleteNotification(notif.id);
+                                setNotifications(notifications.filter(n => n.id !== notif.id));
+                                showFeedback("Notification deleted");
+                              } catch (err) {
+                                showFeedback("Failed to delete", "error");
+                              }
+                            }}
+                            className="p-1 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-md transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        onClick={async () => {
-                          await NotificationService.deleteNotification(notif.id);
-                          setNotifications(notifications.filter(n => n.id !== notif.id));
-                        }}
-                        className="text-slate-300 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 

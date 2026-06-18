@@ -1,42 +1,9 @@
 import { storageService } from './storageService';
 import { SessionType, IssuedPass, PassApplication } from '../types';
-import { PRIORITY_WEIGHTS } from '../constants';
 import { ScoringService } from './ScoringService';
+import { NotificationService } from './NotificationService';
 
 export const lotteryService = {
-  /**
-   * Calculates a priority score based on historical entry/missed behavior.
-   */
-  calculatePriority: (mrId: string, allPasses: IssuedPass[]): number => {
-    let score = 0;
-    const now = new Date();
-    const mrPasses = allPasses.filter(p => p.mrId === mrId);
-    
-    // 1. Penalty for missed entries (expired passes)
-    const missed = mrPasses.filter(p => p.entryStatus === 'expired');
-    score += missed.length * PRIORITY_WEIGHTS.MISSED_ENTRY;
-
-    // 2. Bonus for time since last successful entry
-    const entered = mrPasses.filter(p => p.entryStatus === 'entered');
-    
-    if (entered.length > 0) {
-      const sorted = [...entered].sort((a, b) => new Date(b.passDate).getTime() - new Date(a.passDate).getTime());
-      const last = new Date(sorted[0].passDate);
-      const diffDays = Math.floor((now.getTime() - last.getTime()) / (1000 * 3600 * 24));
-      
-      if (diffDays >= 14) score += PRIORITY_WEIGHTS.NO_PASS_14_DAYS;
-      else if (diffDays >= 7) score += PRIORITY_WEIGHTS.NO_PASS_7_DAYS;
-      
-      // 3. Cooldown penalty (secondary check for scoring)
-      if (diffDays <= 3) score += PRIORITY_WEIGHTS.PASS_IN_LAST_3_DAYS;
-    } else {
-      // First timers or long-term absent get high priority
-      score += PRIORITY_WEIGHTS.NO_PASS_14_DAYS;
-    }
-    
-    return score;
-  },
-
   /**
    * Run the lottery with new scoring system that includes credit tie-breaker
    */
@@ -205,6 +172,52 @@ export const lotteryService = {
     await storageService.saveApplications([...updatedApps, ...cooldownUpdated]);
     await storageService.savePasses(newPasses);
     await storageService.log('SYSTEM', 'LOTTERY_RUN', `Hospital: ${hosp.name}, Session: ${session}, Passes: ${selected.length}`);
+
+    // Create notifications for selected MRs
+    for (const sel of selected) {
+      try {
+        await NotificationService.createNotification(
+          sel.mrId,
+          'session_selected',
+          'Session Selected',
+          `You have been selected for the ${session} session at ${hosp.name} on ${today}.`,
+          sel.id
+        );
+      } catch (err) {
+        console.error("Failed to create selection notification:", err);
+      }
+    }
+
+    // Create notifications for waitlisted MRs
+    const waitlistedMRs = scored.slice(selected.length);
+    for (const wait of waitlistedMRs) {
+      try {
+        await NotificationService.createNotification(
+          wait.mrId,
+          'session_waitlist',
+          'Session Waitlisted',
+          `You are waitlisted for the ${session} session at ${hosp.name} on ${today}.`,
+          wait.id
+        );
+      } catch (err) {
+        console.error("Failed to create waitlist notification:", err);
+      }
+    }
+
+    // Create notifications for cooldown waitlisted MRs
+    for (const wait of cooldownRejectedApps) {
+      try {
+        await NotificationService.createNotification(
+          wait.mrId,
+          'session_waitlist',
+          'Session Waitlisted',
+          `You are waitlisted (cooldown) for the ${session} session at ${hosp.name} on ${today}.`,
+          wait.id
+        );
+      } catch (err) {
+        console.error("Failed to create cooldown waitlist notification:", err);
+      }
+    }
   
     // Trigger Email Notifications
     if (selected.length > 0) {
