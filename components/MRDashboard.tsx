@@ -5,12 +5,6 @@ import {
   Calendar, Clock, QrCode, AlertCircle, CheckCircle2, Info, Building2, 
   PlusCircle, Sun, Moon, Maximize, Search, Send, CheckCircle, 
   UserCircle, Briefcase, Phone, CreditCard, ShieldCheck, 
-<<<<<<< HEAD
-  Image as ImageIcon, ChevronRight, MapPin, XCircle, Camera, X, Smartphone, Zap, Timer, AlertTriangle, Loader2, Mail, ExternalLink, BadgeCheck, Sparkles, TrendingUp
-} from 'lucide-react';
-import { storageService } from '../services/storageService';
-import { MedicalRep, PassApplication, IssuedPass, Hospital, MRHospitalApproval, SessionType } from '../types';
-=======
   Image as ImageIcon, ChevronRight, MapPin, XCircle, Camera, X, Smartphone, Zap, Timer, AlertTriangle, Loader2, Mail, ExternalLink, BadgeCheck, Sparkles, TrendingUp,
   Flame, Trophy, Bell, Trash2
 } from 'lucide-react';
@@ -19,7 +13,6 @@ import { ScoringService } from '../services/ScoringService';
 import { NotificationService } from '../services/NotificationService';
 import { CancellationService } from '../services/CancellationService';
 import { MedicalRep, PassApplication, IssuedPass, Hospital, MRHospitalApproval, SessionType, MRScore, Notification } from '../types';
->>>>>>> a063f5c (Initial commit)
 import { FeedbackContext } from '../App';
 
 interface MRDashboardProps {
@@ -237,11 +230,8 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
   const [approvals, setApprovals] = useState<MRHospitalApproval[]>([]);
   const [apps, setApps] = useState<PassApplication[]>([]);
   const [passes, setPasses] = useState<IssuedPass[]>([]);
-<<<<<<< HEAD
-=======
   const [mrScore, setMrScore] = useState<MRScore | null>(null);
   const [daysUntilReset, setDaysUntilReset] = useState(0);
->>>>>>> a063f5c (Initial commit)
   const [loading, setLoading] = useState(false);
   const [aiInsight, setAiInsight] = useState<string>('');
   const [detailedStrategy, setDetailedStrategy] = useState<string | null>(null);
@@ -255,13 +245,10 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
   const [successApplication, setSuccessApplication] = useState<{hosp: string, sess: string} | null>(null);
   const [scanResult, setScanResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<{ passId: string; appId: string } | null>(null);
-<<<<<<< HEAD
-=======
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [cancellationTimers, setCancellationTimers] = useState<Record<string, number>>({}); // pass.id -> milliseconds remaining
->>>>>>> a063f5c (Initial commit)
 
   useEffect(() => { 
     refreshData(); 
@@ -287,25 +274,6 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
     }
   }, [scanResult]);
 
-<<<<<<< HEAD
-  const refreshData = async () => {
-    const h = await storageService.getHospitals();
-    const apprvs = await storageService.getApprovals({ mrId: user.id });
-    const a = await storageService.getApplications({ mrId: user.id });
-    const p = await storageService.getPasses({ mrId: user.id });
-    setHospitals(h); setApprovals(apprvs); setApps(a); setPasses(p);
-    
-    // Rule-based Priority Insight
-    const missedCount = p.filter(pass => pass.entryStatus === 'expired').length;
-    const entryCount = p.filter(pass => pass.entryStatus === 'entered').length;
-    let insight = "Your profile is synchronized with the network. Apply daily to build priority.";
-    if (missedCount > 0) {
-      insight = `You have ${missedCount} missed entries. This reduces your lottery priority score. Maintain perfect attendance to recover.`;
-    } else if (entryCount > 5) {
-      insight = "Excellent visit frequency! Your high reliability keeps your success probability stable.";
-    }
-    setAiInsight(insight);
-=======
   // Load notifications
   useEffect(() => {
     const loadNotifications = async () => {
@@ -380,7 +348,6 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
       console.error('Error loading MR dashboard data:', error);
       showFeedback('Error loading dashboard data', 'error');
     }
->>>>>>> a063f5c (Initial commit)
   };
 
   const handleFetchStrategy = async () => {
@@ -576,10 +543,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
       session,
       applicationDate: todayStr, 
       priorityScore: 0, 
-<<<<<<< HEAD
-=======
       credit: 0,
->>>>>>> a063f5c (Initial commit)
       status: 'applied', 
       createdAt: new Date().toISOString()
     };
@@ -765,13 +729,6 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
         </div>
       )}
 
-<<<<<<< HEAD
-      {/* Tabs */}
-      <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm w-fit gap-1 overflow-x-auto max-w-full">
-        <button onClick={() => setActiveTab('passes')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'passes' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><QrCode className="h-4 w-4" /> My Access</button>
-        <button onClick={() => setActiveTab('directory')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'directory' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Building2 className="h-4 w-4" /> Facility Hub</button>
-        <button onClick={() => setActiveTab('profile')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'profile' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><UserCircle className="h-4 w-4" /> Identity</button>
-=======
       {/* Score Info Modal */}
       {showScoreModal && mrScore && (
         <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -928,7 +885,6 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
             )}
           </button>
         </div>
->>>>>>> a063f5c (Initial commit)
       </div>
 
       {/* Logic Insights Bar */}
@@ -1030,8 +986,6 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
           </section>
 
           <section className="space-y-6">
-<<<<<<< HEAD
-=======
             {/* Priority Score Info Button */}
             {mrScore && (
               <button
@@ -1053,7 +1007,6 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
               </button>
             )}
 
->>>>>>> a063f5c (Initial commit)
             {/* Active Visit Badge Section */}
             {currentVisitsToday.length > 0 && (
               <div className="bg-green-600 p-8 rounded-[2.5rem] shadow-2xl border border-green-500 animate-in slide-in-from-right-10 duration-700 relative overflow-hidden group">
@@ -1133,8 +1086,6 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                           <span>Gate Access Window</span>
                           <span className="text-indigo-600 font-black">{status.range}</span>
                         </div>
-<<<<<<< HEAD
-=======
                         
                         {/* Cancellation Deadline Timer */}
                         {cancellationTimers[p.id] && cancellationTimers[p.id] > 0 && (
@@ -1143,7 +1094,6 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                             <span className="font-mono">{CancellationService.formatTimeRemaining(cancellationTimers[p.id])}</span>
                           </div>
                         )}
->>>>>>> a063f5c (Initial commit)
                       </div>
 
                       {!status.open ? (
@@ -1160,12 +1110,6 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
 
                       <button 
                          onClick={() => setConfirmCancelId({ passId: p.id, appId: p.applicationId })}
-<<<<<<< HEAD
-                        disabled={loading}
-                        className="w-full mt-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100 flex items-center justify-center gap-2"
-                      >
-                        <XCircle className="h-3.5 w-3.5" /> Request Cancellation
-=======
                         disabled={loading || !CancellationService.canCancelPass(hosp!, p.session, p.passDate)}
                         className={`w-full mt-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border ${
                           CancellationService.canCancelPass(hosp!, p.session, p.passDate)
@@ -1174,7 +1118,6 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                         }`}
                       >
                         <XCircle className="h-3.5 w-3.5" /> {CancellationService.canCancelPass(hosp!, p.session, p.passDate) ? 'Request Cancellation' : 'Cancellation Period Ended'}
->>>>>>> a063f5c (Initial commit)
                       </button>
                     </div>
                   );

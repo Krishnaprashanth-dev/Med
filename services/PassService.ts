@@ -1,10 +1,7 @@
 
 import { supabase } from '../supabaseClient';
 import { PassApplication, IssuedPass, EntryLog, SessionType, SessionCancellationRequest } from '../types';
-<<<<<<< HEAD
-=======
 import { NotificationService } from './NotificationService';
->>>>>>> a063f5c (Initial commit)
 
 const isUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
@@ -24,10 +21,7 @@ export const PassService = {
       session: a.session,
       applicationDate: a.application_date,
       priorityScore: a.priority_score,
-<<<<<<< HEAD
-=======
       credit: a.credit || 0,
->>>>>>> a063f5c (Initial commit)
       status: a.status,
       createdAt: a.created_at
     }));
@@ -43,10 +37,7 @@ export const PassService = {
         session: a.session,
         application_date: a.applicationDate,
         priority_score: a.priorityScore,
-<<<<<<< HEAD
-=======
         credit: a.credit || 0,
->>>>>>> a063f5c (Initial commit)
         status: a.status
       }))
     );
@@ -74,10 +65,7 @@ export const PassService = {
     if (error) throw error;
     return (data || []).map(p => ({
       id: p.id,
-<<<<<<< HEAD
-=======
       applicationId: p.application_id,
->>>>>>> a063f5c (Initial commit)
       mrId: p.mr_id,
       hospitalId: p.hospital_id,
       session: p.session,
@@ -93,11 +81,8 @@ export const PassService = {
     const { error } = await supabase.from('passes').upsert(
       passes.map(p => ({
         ...(p.id && isUUID(p.id) ? { id: p.id } : {}),
-<<<<<<< HEAD
         applicationId: p.application_id,
-=======
         application_id: p.applicationId,
->>>>>>> a063f5c (Initial commit)
         mr_id: p.mrId,
         hospital_id: p.hospitalId,
         session: p.session,

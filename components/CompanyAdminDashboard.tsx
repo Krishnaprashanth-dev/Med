@@ -3,19 +3,16 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { 
   UserPlus, Search, Briefcase, Mail, Phone, CreditCard, X, Edit3, Trash2, Power, 
   User, ShieldCheck, Activity, Users, Plus, Key, BarChart3, Clock, CheckCircle2, 
-<<<<<<< HEAD
   Image as ImageIcon, Upload, Calendar, MapPin, DollarSign, Save, Copy, Check, AlertCircle, ArrowRight, XCircle, CheckCircle
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MedicalRep, PharmaCompany, AuthUser, PassApplication, IssuedPass, SessionCancellationRequest } from '../types';
-=======
   Image as ImageIcon, Upload, Calendar, MapPin, DollarSign, Save, Copy, Check, AlertCircle, ArrowRight, XCircle, CheckCircle,
   Flame, Trophy, Info, AlertTriangle
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { ScoringService } from '../services/ScoringService';
 import { MedicalRep, PharmaCompany, AuthUser, PassApplication, IssuedPass, SessionCancellationRequest, MRScore } from '../types';
->>>>>>> a063f5c (Initial commit)
 import { FeedbackContext } from '../App';
 
 interface CompanyAdminDashboardProps {
@@ -26,10 +23,7 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
   const { showFeedback } = useContext(FeedbackContext);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mrs, setMrs] = useState<MedicalRep[]>([]);
-<<<<<<< HEAD
-=======
   const [mrScores, setMrScores] = useState<Map<string, MRScore>>(new Map());
->>>>>>> a063f5c (Initial commit)
   const [allApps, setAllApps] = useState<PassApplication[]>([]);
   const [allPasses, setAllPasses] = useState<IssuedPass[]>([]);
   const [cancellationRequests, setCancellationRequests] = useState<SessionCancellationRequest[]>([]);
@@ -46,11 +40,8 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
   const [summaryMR, setSummaryMR] = useState<MedicalRep | null>(null);
   const [editingProfile, setEditingProfile] = useState<PharmaCompany | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-<<<<<<< HEAD
-=======
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [selectedMRScore, setSelectedMRScore] = useState<{ mr: MedicalRep; score: MRScore } | null>(null);
->>>>>>> a063f5c (Initial commit)
 
   useEffect(() => {
     refreshData();
@@ -63,9 +54,7 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
       setCompany(myCompany);
       setEditingProfile(myCompany);
       const allMRs = await storageService.getMRs();
-<<<<<<< HEAD
       setMrs(allMRs.filter(m => m.companyName === myCompany.name));
-=======
       const companyMRs = allMRs.filter(m => m.companyName === myCompany.name);
       setMrs(companyMRs);
       
@@ -79,7 +68,6 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
         }
       });
       setMrScores(scoreMap);
->>>>>>> a063f5c (Initial commit)
       
       // Fetch cancellation requests for this company
       const requests = await storageService.getCancellationRequests({ companyId: myCompany.id });
@@ -126,15 +114,12 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
       return;
     }
 
-<<<<<<< HEAD
     // Password confirmation check
     if (editingMR?.password && editingMR.password !== editingMR.confirmPassword) {
       showFeedback("Passwords do not match.", "error");
       return;
     }
-=======
     // Password is saved as-is; no confirmation check needed here
->>>>>>> a063f5c (Initial commit)
 
     // Password length check
     if (editingMR?.password && editingMR.password.length < 6) {
@@ -240,11 +225,8 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
     try {
       await storageService.updatePassword(user.id, passwordData.new.trim());
       showFeedback("Password updated successfully.", "success");
-<<<<<<< HEAD
       setPasswordData({ current: '', new: '', confirm: '' });
-=======
       setPasswordData({ new: '', confirm: '' });
->>>>>>> a063f5c (Initial commit)
     } catch (error) {
       console.error("Password update failed:", error);
       showFeedback("Failed to update password.", "error");
@@ -300,8 +282,6 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
 
   return (
     <div className="space-y-6">
-<<<<<<< HEAD
-=======
       {/* Score Info Modal */}
       {showScoreModal && selectedMRScore && (
         <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -382,7 +362,6 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
       )}
 
       {/* Content Tabs */}
->>>>>>> a063f5c (Initial commit)
       <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm w-fit gap-1 overflow-x-auto max-w-full">
         <button onClick={() => setActiveTab('staff')} className={`px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'staff' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Users className="h-4 w-4" /> My Staff</button>
         <button onClick={() => setActiveTab('cancellations')} className={`px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'cancellations' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><XCircle className="h-4 w-4" /> Cancellations {cancellationRequests.filter(r => r.status === 'pending').length > 0 && <span className="ml-1 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-black">{cancellationRequests.filter(r => r.status === 'pending').length}</span>}</button>
@@ -410,11 +389,8 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 ml-1">Contact Email</label>
-<<<<<<< HEAD
                     <input type="email" value={editingProfile?.email || ''} onChange={e => setEditingProfile(prev => prev ? {...prev, email: e.target.value} : null)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
-=======
                     <input type="email" value={editingProfile?.contactEmail || ''} onChange={e => setEditingProfile(prev => prev ? {...prev, contactEmail: e.target.value} : null)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
->>>>>>> a063f5c (Initial commit)
                   </div>
                 </div>
                 <button onClick={handleSaveProfile} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
@@ -606,10 +582,7 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                     <th className="px-6 py-4">Full Identity</th>
                     <th className="px-6 py-4">System IDs</th>
                     <th className="px-6 py-4">Login ID (Mobile)</th>
-<<<<<<< HEAD
-=======
                     <th className="px-6 py-4">Score Info</th>
->>>>>>> a063f5c (Initial commit)
                     <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
@@ -651,8 +624,6 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                         </div>
                       </td>
                       <td className="px-6 py-4">
-<<<<<<< HEAD
-=======
                         <button 
                           onClick={() => {
                             const score = mrScores.get(mr.id);
@@ -668,7 +639,6 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                         </button>
                       </td>
                       <td className="px-6 py-4">
->>>>>>> a063f5c (Initial commit)
                         <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
                           mr.status === 'active' 
                             ? 'bg-green-100 text-green-700 shadow-sm shadow-green-100 animate-pulse' 
@@ -841,11 +811,8 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <input required={!editingMR?.id} type="password" value={editingMR?.password || ''} onChange={e => setEditingMR({...editingMR, password: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder={editingMR?.id ? "Set New Password (Optional)" : "System Password"} />
-<<<<<<< HEAD
                         <input required={!editingMR?.id && !!editingMR?.password} type="password" value={editingMR?.confirmPassword || ''} onChange={e => setEditingMR({...editingMR, confirmPassword: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Confirm Password" />
-=======
                         {/* Confirm Password field - for local validation only, not stored */}
->>>>>>> a063f5c (Initial commit)
                       </div>
                     </div>
                   </div>

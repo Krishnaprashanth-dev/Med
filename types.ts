@@ -7,8 +7,6 @@ export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 export type SessionType = 'MORNING' | 'EVENING' | 'FULL_DAY';
 export type CancellationRequestStatus = 'pending' | 'approved' | 'rejected';
 
-<<<<<<< HEAD
-=======
 export interface MRScore {
   id: string;
   mrId: string;
@@ -18,7 +16,6 @@ export interface MRScore {
   updatedAt: string;
 }
 
->>>>>>> a063f5c (Initial commit)
 export interface MedicalRep {
   id: string;
   fullName: string;
@@ -78,10 +75,7 @@ export interface PassApplication {
   session: SessionType;
   applicationDate: string;
   priorityScore: number;
-<<<<<<< HEAD
-=======
   credit: number; // Tie-breaker field
->>>>>>> a063f5c (Initial commit)
   status: ApplicationStatus;
   createdAt: string;
 }
@@ -152,8 +146,6 @@ export interface SessionCancellationRequest {
   respondedBy?: string;
 }
 
-<<<<<<< HEAD
-=======
 export type NotificationType = 'session_selected' | 'session_waitlist' | 'cancellation_accepted' | 'cancellation_rejected' | 'cancellation_request' | 'cancellation_cancelled' | 'waitlist_promoted';
 
 export interface Notification {
@@ -167,7 +159,6 @@ export interface Notification {
   createdAt: string;
 }
 
->>>>>>> a063f5c (Initial commit)
 export interface AuthUser {
   id: string;
   role: UserRole;
