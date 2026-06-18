@@ -3,10 +3,19 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { 
   UserPlus, Search, Briefcase, Mail, Phone, CreditCard, X, Edit3, Trash2, Power, 
   User, ShieldCheck, Activity, Users, Plus, Key, BarChart3, Clock, CheckCircle2, 
+<<<<<<< HEAD
   Image as ImageIcon, Upload, Calendar, MapPin, DollarSign, Save, Copy, Check, AlertCircle, ArrowRight, XCircle, CheckCircle
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MedicalRep, PharmaCompany, AuthUser, PassApplication, IssuedPass, SessionCancellationRequest } from '../types';
+=======
+  Image as ImageIcon, Upload, Calendar, MapPin, DollarSign, Save, Copy, Check, AlertCircle, ArrowRight, XCircle, CheckCircle,
+  Flame, Trophy, Info, AlertTriangle
+} from 'lucide-react';
+import { storageService } from '../services/storageService';
+import { ScoringService } from '../services/ScoringService';
+import { MedicalRep, PharmaCompany, AuthUser, PassApplication, IssuedPass, SessionCancellationRequest, MRScore } from '../types';
+>>>>>>> a063f5c (Initial commit)
 import { FeedbackContext } from '../App';
 
 interface CompanyAdminDashboardProps {
@@ -17,6 +26,10 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
   const { showFeedback } = useContext(FeedbackContext);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mrs, setMrs] = useState<MedicalRep[]>([]);
+<<<<<<< HEAD
+=======
+  const [mrScores, setMrScores] = useState<Map<string, MRScore>>(new Map());
+>>>>>>> a063f5c (Initial commit)
   const [allApps, setAllApps] = useState<PassApplication[]>([]);
   const [allPasses, setAllPasses] = useState<IssuedPass[]>([]);
   const [cancellationRequests, setCancellationRequests] = useState<SessionCancellationRequest[]>([]);
@@ -33,6 +46,11 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
   const [summaryMR, setSummaryMR] = useState<MedicalRep | null>(null);
   const [editingProfile, setEditingProfile] = useState<PharmaCompany | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+<<<<<<< HEAD
+=======
+  const [showScoreModal, setShowScoreModal] = useState(false);
+  const [selectedMRScore, setSelectedMRScore] = useState<{ mr: MedicalRep; score: MRScore } | null>(null);
+>>>>>>> a063f5c (Initial commit)
 
   useEffect(() => {
     refreshData();
@@ -45,7 +63,23 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
       setCompany(myCompany);
       setEditingProfile(myCompany);
       const allMRs = await storageService.getMRs();
+<<<<<<< HEAD
       setMrs(allMRs.filter(m => m.companyName === myCompany.name));
+=======
+      const companyMRs = allMRs.filter(m => m.companyName === myCompany.name);
+      setMrs(companyMRs);
+      
+      // Fetch scores for all company MRs
+      const allScores = await ScoringService.getAllMRScores();
+      const scoreMap = new Map<string, MRScore>();
+      companyMRs.forEach(mr => {
+        const score = allScores.find(s => s.mrId === mr.id);
+        if (score) {
+          scoreMap.set(mr.id, score);
+        }
+      });
+      setMrScores(scoreMap);
+>>>>>>> a063f5c (Initial commit)
       
       // Fetch cancellation requests for this company
       const requests = await storageService.getCancellationRequests({ companyId: myCompany.id });
@@ -92,11 +126,15 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
       return;
     }
 
+<<<<<<< HEAD
     // Password confirmation check
     if (editingMR?.password && editingMR.password !== editingMR.confirmPassword) {
       showFeedback("Passwords do not match.", "error");
       return;
     }
+=======
+    // Password is saved as-is; no confirmation check needed here
+>>>>>>> a063f5c (Initial commit)
 
     // Password length check
     if (editingMR?.password && editingMR.password.length < 6) {
@@ -202,7 +240,11 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
     try {
       await storageService.updatePassword(user.id, passwordData.new.trim());
       showFeedback("Password updated successfully.", "success");
+<<<<<<< HEAD
       setPasswordData({ current: '', new: '', confirm: '' });
+=======
+      setPasswordData({ new: '', confirm: '' });
+>>>>>>> a063f5c (Initial commit)
     } catch (error) {
       console.error("Password update failed:", error);
       showFeedback("Failed to update password.", "error");
@@ -258,6 +300,89 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
 
   return (
     <div className="space-y-6">
+<<<<<<< HEAD
+=======
+      {/* Score Info Modal */}
+      {showScoreModal && selectedMRScore && (
+        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 max-w-md w-full animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+                Score Report
+              </h3>
+              <button onClick={() => setShowScoreModal(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+
+            {/* MR Info */}
+            <div className="mb-6 pb-6 border-b border-slate-200">
+              <p className="text-sm font-bold text-slate-600 mb-2">Medical Representative</p>
+              <p className="text-xl font-black text-slate-800">{selectedMRScore.mr.fullName}</p>
+              <p className="text-xs text-slate-500 font-bold mt-1">{selectedMRScore.mr.loginId}</p>
+            </div>
+
+            {/* Main Score Display */}
+            <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 p-6 rounded-2xl shadow-lg border border-indigo-500 mb-6">
+              <div className="text-center mb-4">
+                <p className="text-indigo-200 text-[10px] font-black uppercase tracking-widest mb-2">Current Priority Score</p>
+                <p className="text-5xl font-black text-white tracking-tight">{selectedMRScore.score.priorityScore}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/20 text-center">
+                  <p className="text-[9px] font-black text-indigo-200 uppercase tracking-widest mb-1">Credit Points</p>
+                  <p className="text-3xl font-black text-white">{selectedMRScore.score.credit}</p>
+                </div>
+                <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/20 text-center">
+                  <p className="text-[9px] font-black text-indigo-200 uppercase tracking-widest mb-1">Days to Reset</p>
+                  <p className="text-3xl font-black text-white">{ScoringService.getDaysUntilReset(selectedMRScore.score)}</p>
+                </div>
+              </div>
+              <p className="text-[9px] text-indigo-100 mt-4 italic leading-relaxed">
+                Score resets every 14 days with formula: new_score = old_score ÷ 4. Credit is used for tie-breaking when scores are equal.
+              </p>
+            </div>
+
+            {/* Scoring Rules */}
+            <div className="space-y-3">
+              <div className="bg-green-50 p-4 rounded-2xl border border-green-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <p className="text-[9px] font-black text-green-700 uppercase tracking-widest">Session Attended</p>
+                </div>
+                <p className="text-lg font-black text-green-700">+5 pts</p>
+                <p className="text-[8px] text-green-600 mt-1">Per successful entry</p>
+              </div>
+              <div className="bg-red-50 p-4 rounded-2xl border border-red-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <p className="text-[9px] font-black text-red-700 uppercase tracking-widest">Session Missed</p>
+                </div>
+                <p className="text-lg font-black text-red-700">-15 pts</p>
+                <p className="text-[8px] text-red-600 mt-1">Per expired pass</p>
+              </div>
+              <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <p className="text-[9px] font-black text-amber-700 uppercase tracking-widest">No Application Day</p>
+                </div>
+                <p className="text-lg font-black text-amber-700">-1 pt</p>
+                <p className="text-[8px] text-amber-600 mt-1">For each day without applying</p>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setShowScoreModal(false)}
+              className="w-full mt-6 px-4 py-3 bg-indigo-600 text-white rounded-xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Content Tabs */}
+>>>>>>> a063f5c (Initial commit)
       <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm w-fit gap-1 overflow-x-auto max-w-full">
         <button onClick={() => setActiveTab('staff')} className={`px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'staff' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Users className="h-4 w-4" /> My Staff</button>
         <button onClick={() => setActiveTab('cancellations')} className={`px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'cancellations' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><XCircle className="h-4 w-4" /> Cancellations {cancellationRequests.filter(r => r.status === 'pending').length > 0 && <span className="ml-1 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-black">{cancellationRequests.filter(r => r.status === 'pending').length}</span>}</button>
@@ -285,7 +410,11 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 ml-1">Contact Email</label>
+<<<<<<< HEAD
                     <input type="email" value={editingProfile?.email || ''} onChange={e => setEditingProfile(prev => prev ? {...prev, email: e.target.value} : null)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
+=======
+                    <input type="email" value={editingProfile?.contactEmail || ''} onChange={e => setEditingProfile(prev => prev ? {...prev, contactEmail: e.target.value} : null)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
+>>>>>>> a063f5c (Initial commit)
                   </div>
                 </div>
                 <button onClick={handleSaveProfile} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
@@ -477,6 +606,10 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                     <th className="px-6 py-4">Full Identity</th>
                     <th className="px-6 py-4">System IDs</th>
                     <th className="px-6 py-4">Login ID (Mobile)</th>
+<<<<<<< HEAD
+=======
+                    <th className="px-6 py-4">Score Info</th>
+>>>>>>> a063f5c (Initial commit)
                     <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
@@ -518,6 +651,24 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                         </div>
                       </td>
                       <td className="px-6 py-4">
+<<<<<<< HEAD
+=======
+                        <button 
+                          onClick={() => {
+                            const score = mrScores.get(mr.id);
+                            if (score) {
+                              setSelectedMRScore({ mr, score });
+                              setShowScoreModal(true);
+                            }
+                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg transition-colors font-bold text-[10px] uppercase tracking-widest"
+                        >
+                          <Info className="h-4 w-4" />
+                          View Score
+                        </button>
+                      </td>
+                      <td className="px-6 py-4">
+>>>>>>> a063f5c (Initial commit)
                         <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
                           mr.status === 'active' 
                             ? 'bg-green-100 text-green-700 shadow-sm shadow-green-100 animate-pulse' 
@@ -690,7 +841,11 @@ const CompanyAdminDashboard: React.FC<CompanyAdminDashboardProps> = ({ user }) =
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <input required={!editingMR?.id} type="password" value={editingMR?.password || ''} onChange={e => setEditingMR({...editingMR, password: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder={editingMR?.id ? "Set New Password (Optional)" : "System Password"} />
+<<<<<<< HEAD
                         <input required={!editingMR?.id && !!editingMR?.password} type="password" value={editingMR?.confirmPassword || ''} onChange={e => setEditingMR({...editingMR, confirmPassword: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Confirm Password" />
+=======
+                        {/* Confirm Password field - for local validation only, not stored */}
+>>>>>>> a063f5c (Initial commit)
                       </div>
                     </div>
                   </div>

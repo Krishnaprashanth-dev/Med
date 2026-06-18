@@ -5,10 +5,21 @@ import {
   Calendar, Clock, QrCode, AlertCircle, CheckCircle2, Info, Building2, 
   PlusCircle, Sun, Moon, Maximize, Search, Send, CheckCircle, 
   UserCircle, Briefcase, Phone, CreditCard, ShieldCheck, 
+<<<<<<< HEAD
   Image as ImageIcon, ChevronRight, MapPin, XCircle, Camera, X, Smartphone, Zap, Timer, AlertTriangle, Loader2, Mail, ExternalLink, BadgeCheck, Sparkles, TrendingUp
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MedicalRep, PassApplication, IssuedPass, Hospital, MRHospitalApproval, SessionType } from '../types';
+=======
+  Image as ImageIcon, ChevronRight, MapPin, XCircle, Camera, X, Smartphone, Zap, Timer, AlertTriangle, Loader2, Mail, ExternalLink, BadgeCheck, Sparkles, TrendingUp,
+  Flame, Trophy, Bell, Trash2
+} from 'lucide-react';
+import { storageService } from '../services/storageService';
+import { ScoringService } from '../services/ScoringService';
+import { NotificationService } from '../services/NotificationService';
+import { CancellationService } from '../services/CancellationService';
+import { MedicalRep, PassApplication, IssuedPass, Hospital, MRHospitalApproval, SessionType, MRScore, Notification } from '../types';
+>>>>>>> a063f5c (Initial commit)
 import { FeedbackContext } from '../App';
 
 interface MRDashboardProps {
@@ -226,6 +237,11 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
   const [approvals, setApprovals] = useState<MRHospitalApproval[]>([]);
   const [apps, setApps] = useState<PassApplication[]>([]);
   const [passes, setPasses] = useState<IssuedPass[]>([]);
+<<<<<<< HEAD
+=======
+  const [mrScore, setMrScore] = useState<MRScore | null>(null);
+  const [daysUntilReset, setDaysUntilReset] = useState(0);
+>>>>>>> a063f5c (Initial commit)
   const [loading, setLoading] = useState(false);
   const [aiInsight, setAiInsight] = useState<string>('');
   const [detailedStrategy, setDetailedStrategy] = useState<string | null>(null);
@@ -239,6 +255,13 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
   const [successApplication, setSuccessApplication] = useState<{hosp: string, sess: string} | null>(null);
   const [scanResult, setScanResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<{ passId: string; appId: string } | null>(null);
+<<<<<<< HEAD
+=======
+  const [showScoreModal, setShowScoreModal] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [cancellationTimers, setCancellationTimers] = useState<Record<string, number>>({}); // pass.id -> milliseconds remaining
+>>>>>>> a063f5c (Initial commit)
 
   useEffect(() => { 
     refreshData(); 
@@ -264,6 +287,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
     }
   }, [scanResult]);
 
+<<<<<<< HEAD
   const refreshData = async () => {
     const h = await storageService.getHospitals();
     const apprvs = await storageService.getApprovals({ mrId: user.id });
@@ -281,6 +305,82 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
       insight = "Excellent visit frequency! Your high reliability keeps your success probability stable.";
     }
     setAiInsight(insight);
+=======
+  // Load notifications
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        const notifs = await NotificationService.getNotifications(user.id);
+        setNotifications(notifs);
+      } catch (err) {
+        console.error('Error loading notifications:', err);
+      }
+    };
+    
+    loadNotifications();
+    const timer = setInterval(loadNotifications, 10000); // Refresh every 10 seconds
+    return () => clearInterval(timer);
+  }, [user.id]);
+
+  // Update cancellation timers
+  useEffect(() => {
+    let timerInterval: number;
+
+    const updateTimers = () => {
+      const newTimers: Record<string, number> = {};
+      passes.forEach(pass => {
+        const hosp = hospitals.find(h => h.id === pass.hospitalId);
+        if (hosp) {
+          const timeRemaining = CancellationService.getTimeUntilCancellationDeadline(hosp, pass.session, pass.passDate);
+          newTimers[pass.id] = timeRemaining;
+        }
+      });
+      setCancellationTimers(newTimers);
+    };
+
+    updateTimers();
+    timerInterval = window.setInterval(updateTimers, 1000); // Update every second
+    return () => clearInterval(timerInterval);
+  }, [passes, hospitals]);
+
+  const refreshData = async () => {
+    try {
+      const h = await storageService.getHospitals();
+      const apprvs = await storageService.getApprovals({ mrId: user.id });
+      const a = await storageService.getApplications({ mrId: user.id });
+      const p = await storageService.getPasses({ mrId: user.id });
+      
+      setHospitals(h); 
+      setApprovals(apprvs); 
+      setApps(a); 
+      setPasses(p);
+
+      try {
+        const score = await ScoringService.getMRScore(user.id);
+        const daysLeft = ScoringService.getDaysUntilReset(score);
+        setMrScore(score);
+        setDaysUntilReset(daysLeft);
+      } catch (scoreError) {
+        console.warn('Score service error (table may not exist):', scoreError);
+        setMrScore(null);
+        setDaysUntilReset(0);
+      }
+
+      // Rule-based Priority Insight
+      const missedCount = p.filter(pass => pass.entryStatus === 'expired').length;
+      const entryCount = p.filter(pass => pass.entryStatus === 'entered').length;
+      let insight = "Your profile is synchronized with the network. Apply daily to build priority.";
+      if (missedCount > 0) {
+        insight = `You have ${missedCount} missed entries. This reduces your lottery priority score. Maintain perfect attendance to recover.`;
+      } else if (entryCount > 5) {
+        insight = "Excellent visit frequency! Your high reliability keeps your success probability stable.";
+      }
+      setAiInsight(insight);
+    } catch (error) {
+      console.error('Error loading MR dashboard data:', error);
+      showFeedback('Error loading dashboard data', 'error');
+    }
+>>>>>>> a063f5c (Initial commit)
   };
 
   const handleFetchStrategy = async () => {
@@ -476,6 +576,10 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
       session,
       applicationDate: todayStr, 
       priorityScore: 0, 
+<<<<<<< HEAD
+=======
+      credit: 0,
+>>>>>>> a063f5c (Initial commit)
       status: 'applied', 
       createdAt: new Date().toISOString()
     };
@@ -661,11 +765,170 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
         </div>
       )}
 
+<<<<<<< HEAD
       {/* Tabs */}
       <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm w-fit gap-1 overflow-x-auto max-w-full">
         <button onClick={() => setActiveTab('passes')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'passes' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><QrCode className="h-4 w-4" /> My Access</button>
         <button onClick={() => setActiveTab('directory')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'directory' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Building2 className="h-4 w-4" /> Facility Hub</button>
         <button onClick={() => setActiveTab('profile')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'profile' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><UserCircle className="h-4 w-4" /> Identity</button>
+=======
+      {/* Score Info Modal */}
+      {showScoreModal && mrScore && (
+        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 max-w-md w-full animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+                <Flame className="h-6 w-6 text-amber-500" />
+                Priority Score
+              </h3>
+              <button onClick={() => setShowScoreModal(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+
+            {/* Main Score Display */}
+            <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 p-6 rounded-2xl shadow-lg border border-indigo-500 mb-6">
+              <div className="text-center mb-4">
+                <p className="text-indigo-200 text-[10px] font-black uppercase tracking-widest mb-2">Current Priority Score</p>
+                <p className="text-5xl font-black text-white tracking-tight">{mrScore.priorityScore}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/20 text-center">
+                  <p className="text-[9px] font-black text-indigo-200 uppercase tracking-widest mb-1">Credit Points</p>
+                  <p className="text-3xl font-black text-white">{mrScore.credit}</p>
+                </div>
+                <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/20 text-center">
+                  <p className="text-[9px] font-black text-indigo-200 uppercase tracking-widest mb-1">Days to Reset</p>
+                  <p className="text-3xl font-black text-white">{daysUntilReset}</p>
+                </div>
+              </div>
+              <p className="text-[9px] text-indigo-100 mt-4 italic leading-relaxed">
+                Score resets every 14 days with formula: new_score = old_score ÷ 4. Credit is used for tie-breaking when scores are equal.
+              </p>
+            </div>
+
+            {/* Scoring Rules */}
+            <div className="space-y-3">
+              <div className="bg-green-50 p-4 rounded-2xl border border-green-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <p className="text-[9px] font-black text-green-700 uppercase tracking-widest">Session Attended</p>
+                </div>
+                <p className="text-lg font-black text-green-700">+5 pts</p>
+                <p className="text-[8px] text-green-600 mt-1">Per successful entry</p>
+              </div>
+              <div className="bg-red-50 p-4 rounded-2xl border border-red-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <p className="text-[9px] font-black text-red-700 uppercase tracking-widest">Session Missed</p>
+                </div>
+                <p className="text-lg font-black text-red-700">-15 pts</p>
+                <p className="text-[8px] text-red-600 mt-1">Per expired pass</p>
+              </div>
+              <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <p className="text-[9px] font-black text-amber-700 uppercase tracking-widest">No Application Day</p>
+                </div>
+                <p className="text-lg font-black text-amber-700">-1 pt</p>
+                <p className="text-[8px] text-amber-600 mt-1">For each day without applying</p>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setShowScoreModal(false)}
+              className="w-full mt-6 px-4 py-3 bg-indigo-600 text-white rounded-xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Notifications Panel */}
+      {showNotifications && (
+        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-end animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                <Bell className="h-5 w-5 text-indigo-600" />
+                Notifications
+              </h3>
+              <button onClick={() => setShowNotifications(false)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+              {notifications.length === 0 ? (
+                <div className="p-8 text-center opacity-40">
+                  <Bell className="h-12 w-12 text-slate-200 mx-auto mb-3" />
+                  <p className="text-sm font-black text-slate-400 uppercase tracking-widest">No notifications</p>
+                </div>
+              ) : (
+                notifications.map(notif => (
+                  <div key={notif.id} className={`p-4 hover:bg-slate-50 transition-colors cursor-pointer ${!notif.read ? 'bg-indigo-50' : ''}`}>
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          {!notif.read && <div className="w-2 h-2 bg-indigo-600 rounded-full"></div>}
+                          <h4 className="font-black text-slate-800 text-sm">{notif.title}</h4>
+                        </div>
+                        <p className="text-[10px] text-slate-600 leading-relaxed">{notif.message}</p>
+                        <p className="text-[9px] text-slate-400 mt-2">
+                          {new Date(notif.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          await NotificationService.deleteNotification(notif.id);
+                          setNotifications(notifications.filter(n => n.id !== notif.id));
+                        }}
+                        className="text-slate-300 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {notifications.filter(n => !n.read).length > 0 && (
+              <div className="p-4 border-t border-slate-100">
+                <button
+                  onClick={async () => {
+                    await NotificationService.markAllAsRead(user.id);
+                    setNotifications(notifications.map(n => ({ ...n, read: true })));
+                  }}
+                  className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-colors"
+                >
+                  Mark All as Read
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm w-fit gap-1 overflow-x-auto max-w-full items-center">
+        <button onClick={() => setActiveTab('passes')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'passes' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><QrCode className="h-4 w-4" /> My Access</button>
+        <button onClick={() => setActiveTab('directory')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'directory' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Building2 className="h-4 w-4" /> Facility Hub</button>
+        <button onClick={() => setActiveTab('profile')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'profile' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><UserCircle className="h-4 w-4" /> Identity</button>
+        
+        <div className="ml-auto pl-4 border-l border-slate-200">
+          <button
+            onClick={() => setShowNotifications(true)}
+            className="relative p-2.5 hover:bg-slate-100 rounded-xl transition-colors"
+          >
+            <Bell className="h-5 w-5 text-slate-500" />
+            {notifications.filter(n => !n.read).length > 0 && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
+            )}
+          </button>
+        </div>
+>>>>>>> a063f5c (Initial commit)
       </div>
 
       {/* Logic Insights Bar */}
@@ -767,6 +1030,30 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
           </section>
 
           <section className="space-y-6">
+<<<<<<< HEAD
+=======
+            {/* Priority Score Info Button */}
+            {mrScore && (
+              <button
+                onClick={() => setShowScoreModal(true)}
+                className="w-full bg-gradient-to-br from-indigo-600 to-indigo-700 p-6 rounded-[2.5rem] shadow-lg border border-indigo-500 hover:shadow-xl hover:border-indigo-400 transition-all active:scale-95 text-left group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-indigo-500/20 p-3 rounded-2xl backdrop-blur-sm group-hover:bg-indigo-500/30 transition-colors">
+                      <Info className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">Priority Score</p>
+                      <p className="text-2xl font-black text-white tracking-tight mt-1">{mrScore.priorityScore}</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-indigo-200 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </button>
+            )}
+
+>>>>>>> a063f5c (Initial commit)
             {/* Active Visit Badge Section */}
             {currentVisitsToday.length > 0 && (
               <div className="bg-green-600 p-8 rounded-[2.5rem] shadow-2xl border border-green-500 animate-in slide-in-from-right-10 duration-700 relative overflow-hidden group">
@@ -846,6 +1133,17 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                           <span>Gate Access Window</span>
                           <span className="text-indigo-600 font-black">{status.range}</span>
                         </div>
+<<<<<<< HEAD
+=======
+                        
+                        {/* Cancellation Deadline Timer */}
+                        {cancellationTimers[p.id] && cancellationTimers[p.id] > 0 && (
+                          <div className="flex justify-between items-center text-[10px] font-black uppercase text-amber-600 tracking-tighter bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                            <span>Cancellation Allowed Until</span>
+                            <span className="font-mono">{CancellationService.formatTimeRemaining(cancellationTimers[p.id])}</span>
+                          </div>
+                        )}
+>>>>>>> a063f5c (Initial commit)
                       </div>
 
                       {!status.open ? (
@@ -862,10 +1160,21 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
 
                       <button 
                          onClick={() => setConfirmCancelId({ passId: p.id, appId: p.applicationId })}
+<<<<<<< HEAD
                         disabled={loading}
                         className="w-full mt-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100 flex items-center justify-center gap-2"
                       >
                         <XCircle className="h-3.5 w-3.5" /> Request Cancellation
+=======
+                        disabled={loading || !CancellationService.canCancelPass(hosp!, p.session, p.passDate)}
+                        className={`w-full mt-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border ${
+                          CancellationService.canCancelPass(hosp!, p.session, p.passDate)
+                            ? 'bg-red-50 text-red-600 hover:bg-red-100 border-red-100'
+                            : 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200'
+                        }`}
+                      >
+                        <XCircle className="h-3.5 w-3.5" /> {CancellationService.canCancelPass(hosp!, p.session, p.passDate) ? 'Request Cancellation' : 'Cancellation Period Ended'}
+>>>>>>> a063f5c (Initial commit)
                       </button>
                     </div>
                   );
