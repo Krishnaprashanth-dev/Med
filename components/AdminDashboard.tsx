@@ -206,7 +206,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
     try {
       await storageService.updatePassword(user.id, passwordData.new.trim());
       showFeedback("Password updated successfully.", "success");
-      setPasswordData({ current: '', new: '', confirm: '' });
       setPasswordData({ new: '', confirm: '' });
     } catch (error) {
       console.error("Password update failed:", error);

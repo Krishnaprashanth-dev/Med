@@ -11,7 +11,7 @@ export const PassService = {
     if (filters?.hospitalId) query = query.eq('hospital_id', filters.hospitalId);
     if (filters?.date) query = query.eq('application_date', filters.date);
     if (filters?.mrId) query = query.eq('mr_id', filters.mrId);
-    
+
     const { data, error } = await query;
     if (error) throw error;
     return (data || []).map(a => ({
@@ -81,7 +81,6 @@ export const PassService = {
     const { error } = await supabase.from('passes').upsert(
       passes.map(p => ({
         ...(p.id && isUUID(p.id) ? { id: p.id } : {}),
-        applicationId: p.application_id,
         application_id: p.applicationId,
         mr_id: p.mrId,
         hospital_id: p.hospitalId,
@@ -125,7 +124,7 @@ export const PassService = {
     }
   },
 
-    cancelPassAndPickNext: async (applicationId: string): Promise<{ success: boolean; message: string }> => {
+  cancelPassAndPickNext: async (applicationId: string): Promise<{ success: boolean; message: string }> => {
     try {
       // 1. Get the application to be cancelled
       const { data: appToCancel, error: getAppError } = await supabase
@@ -154,10 +153,10 @@ export const PassService = {
       const { error: deletePassError } = await supabase
         .from('passes')
         .delete()
-        .eq('application_id', applicationId); 
+        .eq('application_id', applicationId);
 
       if (deletePassError) {
-          console.warn("Could not delete pass, it might not exist yet:", deletePassError);
+        console.warn("Could not delete pass, it might not exist yet:", deletePassError);
       }
 
       // 4. Find the next waitlisted application
@@ -243,15 +242,15 @@ export const PassService = {
     }
   },
 
-   requestCancellation: async (data: { 
-    applicationId: string; 
-    passId: string; 
-    mrId: string; 
-    companyId: string; 
-    hospitalId: string; 
-    session: SessionType; 
-    date: string; 
-    reason: string 
+  requestCancellation: async (data: {
+    applicationId: string;
+    passId: string;
+    mrId: string;
+    companyId: string;
+    hospitalId: string;
+    session: SessionType;
+    date: string;
+    reason: string
   }): Promise<{ success: boolean; message: string }> => {
     try {
       const { data: newRequest, error } = await supabase.from('cancellation_requests').insert({
@@ -337,7 +336,7 @@ export const PassService = {
 
       // 2. Perform the actual cancellation and replacement
       const result = await PassService.cancelPassAndPickNext(request.application_id);
-      
+
       if (result.success) {
         // 3. Update request status
         await supabase.from('cancellation_requests').update({
