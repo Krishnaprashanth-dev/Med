@@ -1,12 +1,7 @@
-
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { 
   UserPlus, Search, Briefcase, Mail, Phone, CreditCard, X, Edit3, Trash2, Power, 
   User, ShieldCheck, Activity, Users, Plus, Key, BarChart3, Clock, CheckCircle2, 
-  Image as ImageIcon, Upload, Calendar, MapPin, DollarSign, Save, Copy, Check, AlertCircle, ArrowRight, XCircle, CheckCircle
-} from 'lucide-react';
-import { storageService } from '../services/storageService';
-import { MedicalRep, PharmaCompany, AuthUser, PassApplication, IssuedPass, SessionCancellationRequest } from '../types';
   Image as ImageIcon, Upload, Calendar, MapPin, DollarSign, Save, Copy, Check, AlertCircle, ArrowRight, XCircle, CheckCircle,
   Flame, Trophy, Info, AlertTriangle
 } from 'lucide-react';
