@@ -2,6 +2,7 @@ import { storageService } from './storageService';
 import { SessionType, IssuedPass, PassApplication } from '../types';
 import { ScoringService } from './ScoringService';
 import { NotificationService } from './NotificationService';
+import { safeRandomUUID } from '../constants';
 
 export const lotteryService = {
   /**
@@ -144,7 +145,7 @@ export const lotteryService = {
 
     // Create New Passes
     const newPasses: IssuedPass[] = selected.map((s) => ({
-      id: crypto.randomUUID(),
+      id: safeRandomUUID(),
       applicationId: s.id,
       mrId: s.mrId,
       hospitalId: s.hospitalId,

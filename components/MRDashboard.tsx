@@ -14,6 +14,7 @@ import { NotificationService } from '../services/NotificationService';
 import { CancellationService } from '../services/CancellationService';
 import { MedicalRep, PassApplication, IssuedPass, Hospital, MRHospitalApproval, SessionType, MRScore, Notification } from '../types';
 import { FeedbackContext } from '../App';
+import { safeRandomUUID } from '../constants';
 
 interface MRDashboardProps {
   user: MedicalRep;
@@ -112,7 +113,18 @@ const QRScannerModal: React.FC<{
         <button onClick={onClose} className="absolute -top-16 right-0 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all active:scale-90"><X className="h-6 w-6" /></button>
         <div className="w-full aspect-square bg-black rounded-[3rem] border-4 border-white/20 overflow-hidden relative shadow-2xl ring-4 ring-indigo-500/20">
           {error ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center"><AlertCircle className="h-12 w-12 text-red-500 mb-4" /><p className="text-white font-bold">{error}</p></div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center">
+              <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+              <p className="text-white font-bold mb-6">{error}</p>
+              <button
+                onClick={() => {
+                  onScan("");
+                }}
+                className="px-6 py-3 bg-indigo-600 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg hover:bg-indigo-700 active:scale-95 transition-all"
+              >
+                Enter Code Manually
+              </button>
+            </div>
           ) : (
             <>
               <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
@@ -132,6 +144,14 @@ const QRScannerModal: React.FC<{
         <div className="mt-8 text-center space-y-4">
           <div className="flex items-center gap-3 justify-center"><Smartphone className="h-6 w-6 text-indigo-400" /><h3 className="text-xl font-black text-white">Align with Gate QR</h3></div>
           <p className="text-slate-400 text-sm font-medium">Point your camera at the hospital gate QR code</p>
+          <button
+            onClick={() => {
+              onScan("");
+            }}
+            className="mt-4 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 mx-auto"
+          >
+            <Zap className="h-4 w-4" /> Enter Code Manually
+          </button>
         </div>
       </div>
       <style>{` @keyframes scan { 0%, 100% { top: 0%; opacity: 0.5; } 50% { top: 100%; opacity: 1; } } `}</style>
@@ -407,12 +427,17 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
       }
 
       const currentHospital = hospitals.find(h => h.id === hospitalIdFromQR);
-      const activePass = myEligiblePasses.find(p => getScanStatus(p.session, currentHospital?.entryWindows).open);
+      // Try to find a pass with an open scan window first
+      let activePass = myEligiblePasses.find(p => getScanStatus(p.session, currentHospital?.entryWindows).open);
+
+      // Fallback: If no pass is within an open entry window, but they have eligible passes today, use the first available one
+      if (!activePass && myEligiblePasses.length > 0) {
+        activePass = myEligiblePasses[0];
+      }
 
       if (!activePass) {
-        const status = getScanStatus(myEligiblePasses[0].session, currentHospital?.entryWindows);
-        setScanResult({ status: 'error', message: `Scanning window closed: ${status.message}` });
-        showFeedback(`Scan Failed: ${status.message}`, "error");
+        setScanResult({ status: 'error', message: 'No valid entry pass found today' });
+        showFeedback("No valid entry pass for today detected for this facility.", "error");
         return;
       }
 
@@ -420,7 +445,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
 
       const updatedPass = { ...activePass, entryStatus: 'entered' as const };
       const log = { 
-        id: crypto.randomUUID(), 
+        id: safeRandomUUID(), 
         issuedPassId: activePass.id, 
         entryTime: new Date().toISOString(), 
         verifiedBy: 'Self-Gate-Scanner-v3.5' 
@@ -462,7 +487,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
   const handleRequestAccess = async (hospitalId: string) => {
     setLoading(true);
     const newApproval: MRHospitalApproval = {
-      id: crypto.randomUUID(),
+      id: safeRandomUUID(),
       mrId: user.id,
       hospitalId: hospitalId,
       status: 'pending',
@@ -537,7 +562,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
     setLoading(true);
     const todayStr = new Date().toLocaleDateString('en-CA');
     const newApp: PassApplication = {
-      id: crypto.randomUUID(), 
+      id: safeRandomUUID(), 
       mrId: user.id, 
       hospitalId, 
       session,
@@ -1121,10 +1146,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
                   <QrCode className="h-6 w-6 text-indigo-600" /> 
                   Daily Permits
                 </h3>
-                {activePassesToday.some(p => {
-                  const hosp = hospitals.find(h => h.id === p.hospitalId);
-                  return getScanStatus(p.session, hosp?.entryWindows).open;
-                }) && (
+                {activePassesToday.length > 0 && (
                   <button onClick={() => setIsScanning(true)} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 shadow-xl active:scale-95 animate-pulse">
                     <Camera className="h-4 w-4" /> SCAN GATE
                   </button>

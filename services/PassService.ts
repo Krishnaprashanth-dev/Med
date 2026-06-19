@@ -2,6 +2,7 @@
 import { supabase } from '../supabaseClient';
 import { PassApplication, IssuedPass, EntryLog, SessionType, SessionCancellationRequest } from '../types';
 import { NotificationService } from './NotificationService';
+import { safeRandomUUID } from '../constants';
 
 const isUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
@@ -63,17 +64,46 @@ export const PassService = {
 
     const { data, error } = await query;
     if (error) throw error;
-    return (data || []).map(p => ({
-      id: p.id,
-      applicationId: p.application_id,
-      mrId: p.mr_id,
-      hospitalId: p.hospital_id,
-      session: p.session,
-      passDate: p.pass_date,
-      timeSlot: p.time_slot,
-      qrCode: p.qr_code,
-      entryStatus: p.entry_status
-    }));
+
+    // Fetch corresponding applications to link applicationId dynamically (since database passes table doesn't have application_id column)
+    let appsQuery = supabase.from('applications').select('id, mr_id, hospital_id, session, application_date');
+    if (filters?.hospitalId) appsQuery = appsQuery.eq('hospital_id', filters.hospitalId);
+    if (filters?.date) appsQuery = appsQuery.eq('application_date', filters.date);
+    if (filters?.mrId) {
+      if (Array.isArray(filters.mrId)) {
+        appsQuery = appsQuery.in('mr_id', filters.mrId);
+      } else {
+        appsQuery = appsQuery.eq('mr_id', filters.mrId);
+      }
+    }
+    if (filters?.session) appsQuery = appsQuery.eq('session', filters.session);
+
+    if (!filters?.date && data && data.length > 0 && data.length < 100) {
+      const uniqueDates = Array.from(new Set(data.map(p => p.pass_date)));
+      appsQuery = appsQuery.in('application_date', uniqueDates);
+    }
+
+    const { data: appsData } = await appsQuery;
+    const appsMap = new Map<string, string>(); // key: mrId_hospitalId_session_date -> applicationId
+    (appsData || []).forEach(a => {
+      const key = `${a.mr_id}_${a.hospital_id}_${a.session}_${a.application_date}`;
+      appsMap.set(key, a.id);
+    });
+
+    return (data || []).map(p => {
+      const key = `${p.mr_id}_${p.hospital_id}_${p.session}_${p.pass_date}`;
+      return {
+        id: p.id,
+        applicationId: appsMap.get(key) || '',
+        mrId: p.mr_id,
+        hospitalId: p.hospital_id,
+        session: p.session,
+        passDate: p.pass_date,
+        timeSlot: p.time_slot,
+        qrCode: p.qr_code,
+        entryStatus: p.entry_status
+      };
+    });
   },
 
   savePasses: async (passes: IssuedPass[]) => {
@@ -81,7 +111,6 @@ export const PassService = {
     const { error } = await supabase.from('passes').upsert(
       passes.map(p => ({
         ...(p.id && isUUID(p.id) ? { id: p.id } : {}),
-        application_id: p.applicationId,
         mr_id: p.mrId,
         hospital_id: p.hospitalId,
         session: p.session,
@@ -153,7 +182,10 @@ export const PassService = {
       const { error: deletePassError } = await supabase
         .from('passes')
         .delete()
-        .eq('application_id', applicationId);
+        .eq('mr_id', appToCancel.mr_id)
+        .eq('hospital_id', appToCancel.hospital_id)
+        .eq('session', appToCancel.session)
+        .eq('pass_date', appToCancel.application_date);
 
       if (deletePassError) {
         console.warn("Could not delete pass, it might not exist yet:", deletePassError);
@@ -187,8 +219,8 @@ export const PassService = {
 
       // 6. Create a new pass for the next candidate
       const newPass = {
-        id: crypto.randomUUID(),
-        application_id: nextApp.id,
+        id: safeRandomUUID(),
+        mr_id: nextApp.mr_id,
         hospital_id: nextApp.hospital_id,
         session: nextApp.session,
         pass_date: nextApp.application_date,

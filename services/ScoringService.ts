@@ -1,6 +1,6 @@
 import { storageService } from './storageService';
 import { MRScore, IssuedPass, PassApplication, SessionType } from '../types';
-import { PRIORITY_WEIGHTS, SCORING_CONFIG } from '../constants';
+import { PRIORITY_WEIGHTS, SCORING_CONFIG, safeRandomUUID } from '../constants';
 import { supabase } from '../supabaseClient';
 
 const isUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -34,7 +34,7 @@ export const ScoringService = {
     // Return default score for MR with no applications yet
     const today = new Date().toLocaleDateString('en-CA');
     return {
-      id: crypto.randomUUID(),
+      id: safeRandomUUID(),
       mrId: mrId,
       priorityScore: 0,
       credit: 0,

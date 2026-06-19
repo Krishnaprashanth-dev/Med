@@ -2,6 +2,7 @@
 import { supabase } from '../supabaseClient';
 import { MedicalRep } from '../types';
 import { SessionService } from './SessionService';
+import { safeRandomUUID } from '../constants';
 
 export const MRService = {
   getMRs: async (): Promise<MedicalRep[]> => {
@@ -52,7 +53,7 @@ export const MRService = {
     const results: MedicalRep[] = [];
     for (const mr of mrs) {
       // CRITICAL FIX: Generate UUID on client if missing to satisfy NOT NULL constraints in Supabase
-      const targetId = (mr.id && mr.id.length > 20) ? mr.id : crypto.randomUUID();
+      const targetId = (mr.id && mr.id.length > 20) ? mr.id : safeRandomUUID();
       
       // CRITICAL FIX: New profiles MUST have a password for authentication to work
       if (!mr.id && !mr.password) {

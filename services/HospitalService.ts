@@ -2,6 +2,7 @@
 import { supabase } from '../supabaseClient';
 import { Hospital, HospitalUser } from '../types';
 import { SessionService } from './SessionService';
+import { safeRandomUUID } from '../constants';
 
 export const HospitalService = {
   getHospitals: async (id?: string): Promise<Hospital[]> => {
@@ -31,7 +32,7 @@ export const HospitalService = {
   saveHospitals: async (hospitals: Hospital[]): Promise<Hospital[]> => {
     const results: Hospital[] = [];
     for (const h of hospitals) {
-      const targetId = (h.id && h.id.length > 20) ? h.id : crypto.randomUUID();
+      const targetId = (h.id && h.id.length > 20) ? h.id : safeRandomUUID();
 
       const { data, error } = await supabase.from('hospitals').upsert({
         id: targetId,
@@ -103,7 +104,7 @@ export const HospitalService = {
         throw new Error(`Cannot create new hospital user ${u.fullName}: password is required`);
       }
       
-      const targetId = (u.id && u.id.length > 20) ? u.id : crypto.randomUUID();
+      const targetId = (u.id && u.id.length > 20) ? u.id : safeRandomUUID();
       const profileUpdate: any = {
         id: targetId,
         hospital_id: u.hospitalId,

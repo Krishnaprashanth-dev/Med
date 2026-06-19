@@ -56,9 +56,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
       setCompanies(await storageService.getCompanies());
       const allApps = await storageService.getApplications();
       const myApps = allApps.filter(a => a.hospitalId === user.hospitalId);
-      setApps(allApps); 
+      setApps(myApps); 
       const myPasses = (await storageService.getPasses()).filter(p => p.hospitalId === user.hospitalId);
-      setPasses(await storageService.getPasses());
+      setPasses(myPasses);
       setLogs(await storageService.getLogs());
       setApprovals(await storageService.getApprovals());
       
@@ -99,12 +99,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   }, [refreshData]);
 
   const handleManualLottery = async (session: SessionType) => {
-    const result = await lotteryService.runLottery(user.hospitalId, session);
-    setLotteryResult(result);
-    if (result.success) {
-      storageService.log(user.id, 'MANUAL_LOTTERY', `Session: ${session}, Result: ${result.message}`);
-      showFeedback("Spin Completed!", "success");
-      refreshData();
+    try {
+      const result = await lotteryService.runLottery(user.hospitalId, session);
+      setLotteryResult(result);
+      if (result.success) {
+        storageService.log(user.id, 'MANUAL_LOTTERY', `Session: ${session}, Result: ${result.message}`);
+        showFeedback("Spin Completed!", "success");
+        refreshData();
+      } else {
+        showFeedback(`Spin Failed: ${result.message}`, "error");
+      }
+    } catch (err: any) {
+      console.error("Manual lottery error:", err);
+      showFeedback(`System error: ${err.message || 'Spin execution failed'}`, "error");
     }
   };
 
@@ -349,6 +356,60 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
                  );
               })}
             </div>
+          </div>
+
+          {/* Today's Selected Representatives */}
+          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm mt-6">
+            <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-indigo-600" /> Today's Selected Representatives (Daily Permits)
+            </h3>
+            
+            {(() => {
+              const today = new Date().toLocaleDateString('en-CA');
+              const todayPasses = passes.filter(p => p.passDate === today);
+              
+              if (todayPasses.length === 0) {
+                return (
+                  <div className="text-center py-12 text-slate-400 italic bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    No representatives selected for today yet. Run a lottery spin to select applicants.
+                  </div>
+                );
+              }
+              
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {todayPasses.map(p => {
+                    const mr = mrs.find(m => m.id === p.mrId);
+                    return (
+                      <div key={p.id} className="flex items-center justify-between p-5 bg-slate-50 border border-slate-100 rounded-3xl hover:border-indigo-100 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
+                            <User className="h-6 w-6 text-slate-400" />
+                          </div>
+                          <div>
+                            <p className="font-black text-slate-800">{mr?.fullName || 'Loading Profile...'}</p>
+                            <p className="text-xs font-bold text-indigo-600 uppercase tracking-wide">{mr?.companyName || 'Pharma Rep'}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{p.session} SESSION</span>
+                          <div className="mt-1">
+                            <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                              p.entryStatus === 'entered' ? 'bg-green-100 text-green-700' :
+                              p.entryStatus === 'ended' ? 'bg-slate-200 text-slate-600' :
+                              p.entryStatus === 'expired' ? 'bg-slate-100 text-slate-500' :
+                              'bg-indigo-100 text-indigo-700'
+                            }`}>
+                              {p.entryStatus === 'entered' ? 'VISITED' : p.entryStatus === 'ended' ? 'ENDED' : p.entryStatus.replace('_', ' ')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </section>
       )}

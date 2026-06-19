@@ -37,6 +37,8 @@ async function startServer() {
     res.json({ status: 'ok', environment: process.env.NODE_ENV, vercel: !!process.env.VERCEL });
   });
 
+
+
 // Notification Endpoints
   app.post('/api/notify-selection', async (req, res) => {
     const { mrIds, hospitalId, session, date } = req.body;

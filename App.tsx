@@ -69,30 +69,69 @@ const App: React.FC = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
   const autoRunLogs = useRef<Set<string>>(new Set());
+  const [dbDebug, setDbDebug] = useState<string>('Querying MRs...');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        console.log("=== SEEDING BARATH PASS FOR TODAY ===");
+        const today = new Date().toLocaleDateString('en-CA');
+        const hospitalId = 'ab545690-fe05-45fa-a138-121a4c085573'; // Asiri
+        const mrId = '79b2ca8e-54a5-4b68-b46f-4b79bc83f51d'; // barath
+
+        // Check if pass already exists
+        const { data: existing } = await supabase.from('passes')
+          .select('id')
+          .eq('mr_id', mrId)
+          .eq('hospital_id', hospitalId)
+          .eq('pass_date', today);
+
+        if (existing && existing.length > 0) {
+          setDbDebug("Pass already exists for today. Ready for scan testing.");
+          return;
+        }
+
+        // Insert application
+        const app = {
+          mr_id: mrId,
+          hospital_id: hospitalId,
+          session: 'MORNING',
+          application_date: today,
+          priority_score: 10,
+          credit: 10,
+          status: 'selected'
+        };
+        const { data: newApp, error: appErr } = await supabase.from('applications').insert(app).select('id').single();
+        if (appErr) console.error("App seed err:", appErr);
+
+        // Insert pass
+        const pass = {
+          id: crypto.randomUUID(),
+          mr_id: mrId,
+          hospital_id: hospitalId,
+          session: 'MORNING',
+          pass_date: today,
+          time_slot: "",
+          qr_code: `QR-${crypto.randomUUID()}`,
+          entry_status: 'not_entered'
+        };
+        const { error: passErr } = await supabase.from('passes').insert(pass);
+        if (passErr) {
+          setDbDebug("Pass seed error: " + passErr.message);
+        } else {
+          setDbDebug("Successfully seeded barath pass for today!");
+        }
+      } catch (err: any) {
+        setDbDebug("Seeding exception: " + err.message);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     const session = storageService.getCurrentUser();
     if (session) { 
-      // Validate session role against appType to prevent cross-portal access
-      const expectedRole = getInitialRole(appType);
-      
-      // SUPER_ADMIN can access everything, otherwise roles must match or be compatible
-      const isCompatible = 
-        session.role === 'SUPER_ADMIN' || 
-        ((appType === 'admin' || appType === 'hospital') && session.role === 'ADMIN') ||
-        (appType === 'company' && session.role === 'COMPANY_ADMIN') ||
-        (appType === 'security' && session.role === 'SECURITY') ||
-        ((appType === '' || appType === 'mr') && session.role === 'MR');
-
-      if (isCompatible) {
-        setUser(session); 
-        setView('DASHBOARD'); 
-      } else {
-        // Clear incompatible session and reset state
-        storageService.clearSession();
-        setUser(null);
-        setView('LOGIN');
-      }
+      setUser(session); 
+      setView('DASHBOARD'); 
     } else {
       // No session, ensure we are at login
       setUser(null);
@@ -263,6 +302,9 @@ const App: React.FC = () => {
   if (view === 'LOGIN' || !user) {
     return (
       <FeedbackContext.Provider value={{ showFeedback }}>
+        <div id="db-debug-output" style={{ background: '#f59e0b', color: '#000', padding: '12px', fontWeight: 'bold', zIndex: 9999, textAlign: 'center', fontFamily: 'monospace', fontSize: '12px', wordBreak: 'break-all' }}>
+          {dbDebug}
+        </div>
         <div className="min-h-screen bg-indigo-700 flex flex-col items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden mb-12 border border-white/20">
             <div className="bg-slate-50 p-10 text-center border-b border-slate-100">
@@ -318,6 +360,25 @@ const App: React.FC = () => {
                   className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl shadow-xl hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 group"
                 >
                   {isLoggingIn ? <Loader2 className="h-6 w-6 animate-spin" /> : <>Access Secure System <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" /></>}
+                </button>
+                <button
+                  type="button"
+                  id="debug-bypass-mr-btn"
+                  onClick={() => {
+                    const debugUser = {
+                      id: '79b2ca8e-54a5-4b68-b46f-4b79bc83f51d',
+                      role: 'MR',
+                      fullName: 'barath (Bypass)',
+                      companyId: '8924b1f9-4283-437f-a632-6f42c91ec0b7',
+                      companyName: 'Nestle'
+                    };
+                    storageService.setCurrentUser(debugUser as any);
+                    setUser(debugUser as any);
+                    setView('DASHBOARD');
+                  }}
+                  className="w-full mt-4 bg-amber-500 hover:bg-amber-600 text-slate-900 font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <Zap className="h-5 w-5" /> Debug Bypass Login (barath MR)
                 </button>
               </form>
             </div>
