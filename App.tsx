@@ -2,6 +2,7 @@
 import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
 import { storageService } from './services/storageService';
 import { lotteryService } from './services/lotteryService';
+import { ScoringService } from './services/ScoringService';
 import Layout from './components/Layout';
 import MRDashboard from './components/MRDashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -145,6 +146,18 @@ const App: React.FC = () => {
         if (hasPassChanges) {
           const changesOnly = updatedPasses.filter((p, i) => p.entryStatus !== allRelevantPasses[i].entryStatus);
           await storageService.savePasses(changesOnly);
+
+          // Apply score penalties for any newly expired passes
+          for (const p of changesOnly) {
+            if (p.entryStatus === 'expired') {
+              try {
+                await ScoringService.recordSessionMiss(p.mrId);
+                console.log(`[Automation] Recorded session miss penalty (-15 points) for MR: ${p.mrId}`);
+              } catch (scoreErr) {
+                console.error(`[Automation] Error recording session miss penalty for MR ${p.mrId}:`, scoreErr);
+              }
+            }
+          }
         }
 
         // Handle Automatic Lottery

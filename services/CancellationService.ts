@@ -19,11 +19,11 @@ export const CancellationService = {
    * Check if cancellation is still allowed
    */
   canCancelPass: (hospital: Hospital, session: SessionType, passDate: string): boolean => {
-    const passDay = new Date(passDate);
     const today = new Date();
+    const todayStr = today.toLocaleDateString('en-CA');
 
     // Can only cancel passes for today
-    if (passDay.toLocaleDateString('en-CA') !== today.toLocaleDateString('en-CA')) {
+    if (passDate !== todayStr) {
       return false;
     }
 
@@ -37,11 +37,11 @@ export const CancellationService = {
    * Get time remaining until cancellation deadline (in milliseconds)
    */
   getTimeUntilCancellationDeadline: (hospital: Hospital, session: SessionType, passDate: string): number => {
-    const passDay = new Date(passDate);
     const today = new Date();
+    const todayStr = today.toLocaleDateString('en-CA');
 
     // Check if it's the pass date
-    if (passDay.toLocaleDateString('en-CA') !== today.toLocaleDateString('en-CA')) {
+    if (passDate !== todayStr) {
       return 0;
     }
 

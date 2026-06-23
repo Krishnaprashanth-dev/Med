@@ -43,6 +43,11 @@ const getScanStatus = (session: SessionType, windows?: Record<string, { start: s
   return { open: false, message: `Access Denied: Scan Window Ended at ${window.end}`, range: `${window.start} - ${window.end}`, end: window.end };
 };
 
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 const QRScannerModal: React.FC<{
   onClose: () => void;
   onScan: (value: string) => void;
@@ -471,6 +476,13 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
       } catch (logErr) {
         console.error("⚠️ Log save error (UI already updated):", logErr);
       }
+
+      try {
+        await ScoringService.recordSessionAttendance(user.id);
+        console.log("✅ Attendance points recorded successfully (+5 points)");
+      } catch (scoreErr) {
+        console.error("⚠️ Attendance points record error:", scoreErr);
+      }
       
       refreshData();
       showFeedback(`Gate Access Authorized for ${activePass.session} session!`, 'success');
@@ -525,7 +537,7 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
 
     if (relevantPasses.length === 0) return null;
 
-    const lastPassDate = new Date(relevantPasses[0].passDate);
+    const lastPassDate = parseLocalDate(relevantPasses[0].passDate);
     const nextEligibleDate = new Date(lastPassDate);
     nextEligibleDate.setDate(lastPassDate.getDate() + 4); 
 
@@ -560,6 +572,16 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
     }
 
     setLoading(true);
+    let currentScore = { priorityScore: 0, credit: 0 };
+    try {
+      const score = await ScoringService.getMRScore(user.id);
+      if (score) {
+        currentScore = { priorityScore: score.priorityScore, credit: score.credit };
+      }
+    } catch (err) {
+      console.warn("Could not retrieve current MR score, defaulting to 0:", err);
+    }
+
     const todayStr = new Date().toLocaleDateString('en-CA');
     const newApp: PassApplication = {
       id: safeRandomUUID(), 
@@ -567,8 +589,8 @@ const MRDashboard: React.FC<MRDashboardProps> = ({ user }) => {
       hospitalId, 
       session,
       applicationDate: todayStr, 
-      priorityScore: 0, 
-      credit: 0,
+      priorityScore: currentScore.priorityScore, 
+      credit: currentScore.credit,
       status: 'applied', 
       createdAt: new Date().toISOString()
     };

@@ -315,6 +315,18 @@ async function startServer() {
             if (updateError) throw updateError;
             resetCount++;
             console.log(`[Batch Reset] Reset MR ${mr.full_name} from ${priorityScore} to ${newScore}`);
+          } else if (app.application_date < today) {
+            // Apply -1 daily point penalty for no application submitted today
+            const priorityScore = app.priority_score || 0;
+            const { error: updateError } = await supabase
+              .from('applications')
+              .update({
+                priority_score: priorityScore - 1
+              })
+              .eq('id', app.id);
+
+            if (updateError) throw updateError;
+            console.log(`[Batch Reset] Deducted 1 point from MR ${mr.full_name} for no application today (New Score: ${priorityScore - 1})`);
           }
         }
       }
